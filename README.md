@@ -1,5 +1,7 @@
 # LLM Lab
 
+[![CI](https://github.com/elijahsylar/llm-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/elijahsylar/llm-lab/actions/workflows/ci.yml)
+
 A local workbench for running and fine-tuning language models on a single consumer GPU. One FastAPI process serves chat over local GGUF models (llama.cpp) and Ollama, runs LoRA and QLoRA fine-tunes as supervised background jobs, exports the result to GGUF, and trains a small character-level GPT from scratch. It exists to make the full loop (pick a base model, train an adapter, export it, chat with it) work on an 8 GB laptop GPU without the inference server and the trainer fighting over VRAM.
 
 ![Finetune Lab](docs/screenshots/finetune-lab.png)
