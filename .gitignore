@@ -1,0 +1,50 @@
+# Model weights, adapters, checkpoints
+*.gguf
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+checkpoint-*/
+models/
+finetune/runs/
+finetune/exports/
+tiny_lab/runs/
+
+# Datasets
+finetune/datasets/
+tiny_lab/data/
+*.jsonl
+*.parquet
+*.arrow
+
+# Environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.cache/
+node_modules/
+
+# Logs
+logs/
+*.log
+
+# Secrets and local settings
+.env*
+!.env.example
+.claude/
+
+# Files over 50 MB can't be matched by pattern here; check before committing:
+#   find . -path ./.venv -prune -o -type f -size +50M -print
+
+# Local data, runs, databases, dumps
+data/
+runs/
+*.sql
+*.sql.gz
+*.db
+*.sqlite
+*.sqlite3

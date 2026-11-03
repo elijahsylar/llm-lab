@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Lab // Neural Interface</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cyan:   #00d4ff;
+    --green:  #00ff88;
+    --amber:  #ffaa00;
+    --red:    #ff3366;
+    --purple: #aa44ff;
+    --bg:     #050a0e;
+    --bg2:    #0a1520;
+    --bg3:    #0f1f30;
+    --border: #1a3a4a;
+    --dim:    #4a7a8a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: #c8e8f0;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 15px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── TOP BAR ── */
+  #topbar {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-shrink: 0;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+  }
+  #topbar .logo {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 16px;
+    font-weight: 900;
+    color: var(--cyan);
+    letter-spacing: 3px;
+    text-shadow: 0 0 16px var(--cyan);
+    white-space: nowrap;
+  }
+  .gpu-stat { display: flex; align-items: center; gap: 6px; }
+  .gpu-stat .label { color: var(--dim); }
+  .gpu-stat .value { color: var(--green); }
+  #vram-bar-wrap { width: 120px; height: 8px; background: var(--bg3); border: 1px solid var(--border); border-radius: 2px; overflow: hidden; }
+  #vram-bar { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--green)); transition: width .5s ease; width: 0%; }
+  #ollama-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); transition: background .3s; }
+  #ollama-dot.ok  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  #ollama-dot.err { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+
+  /* ── MAIN LAYOUT ── */
+  #main { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── SIDEBAR ── */
+  #sidebar {
+    width: 260px; min-width: 260px;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .sidebar-section { border-bottom: 1px solid var(--border); padding: 10px 0; }
+  .sidebar-section-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px; letter-spacing: 2px; color: var(--dim);
+    padding: 0 12px 6px; text-transform: uppercase;
+  }
+  #model-list { overflow-y: auto; flex: 1; }
+  .model-group-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px; color: var(--amber);
+    padding: 6px 12px 2px; letter-spacing: 1px; text-transform: uppercase;
+  }
+  .model-item {
+    padding: 6px 12px; cursor: pointer;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px; color: #8ab8c8;
+    transition: all .15s; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+    border-left: 2px solid transparent;
+  }
+  .model-item:hover  { background: var(--bg3); color: var(--cyan); }
+  .model-item.active { background: rgba(0,212,255,.08); color: var(--cyan); border-left-color: var(--cyan); text-shadow: 0 0 8px var(--cyan); }
+
+  #model-search {
+    width: calc(100% - 24px); margin: 8px 12px;
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--cyan); font-family: 'Share Tech Mono', monospace;
+    font-size: 12px; padding: 5px 8px; outline: none; border-radius: 2px;
+  }
+  #model-search:focus { border-color: var(--cyan); }
+  #model-search::placeholder { color: var(--dim); }
+
+  .ctrl-row { padding: 6px 12px; display: flex; align-items: center; gap: 8px; font-family: 'Share Tech Mono', monospace; font-size: 12px; }
+  .ctrl-label { color: var(--dim); white-space: nowrap; }
+  .ctrl-row input[type=range] { flex: 1; accent-color: var(--cyan); cursor: pointer; }
+  .ctrl-value { color: var(--green); width: 30px; text-align: right; }
+
+  #sys-prompt {
+    width: calc(100% - 24px); margin: 4px 12px;
+    background: var(--bg3); border: 1px solid var(--border);
+    color: #c8e8f0; font-family: 'Share Tech Mono', monospace;
+    font-size: 11px; padding: 6px 8px; resize: vertical;
+    min-height: 60px; max-height: 120px; outline: none; border-radius: 2px;
+  }
+  #sys-prompt:focus { border-color: var(--amber); }
+
+  .btn {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--dim); font-family: 'Share Tech Mono', monospace;
+    font-size: 11px; padding: 5px 10px; cursor: pointer;
+    letter-spacing: 1px; transition: all .15s; border-radius: 2px;
+  }
+  .btn:hover         { border-color: var(--cyan);  color: var(--cyan); }
+  .btn-danger:hover  { border-color: var(--red);   color: var(--red); }
+  .btn-green:hover   { border-color: var(--green); color: var(--green); }
+  .btn-active { border-color: var(--cyan) !important; color: var(--cyan) !important; background: rgba(0,212,255,.08) !important; }
+
+  .sidebar-actions { padding: 8px 12px; display: flex; gap: 6px; }
+
+  /* ── CONTENT AREA (tabs) ── */
+  #content-wrap {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* Tab bar */
+  #tab-bar {
+    display: flex; align-items: stretch;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2); flex-shrink: 0;
+  }
+  .tab-btn {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px; letter-spacing: 2px;
+    padding: 10px 20px; cursor: pointer;
+    background: transparent; border: none;
+    color: var(--dim); border-bottom: 2px solid transparent;
+    transition: all .15s;
+  }
+  .tab-btn:hover { color: var(--cyan); }
+  .tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+
+  /* ── CHAT PANEL ── */
+  #chat-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  #model-display {
+    padding: 8px 16px; font-family: 'Share Tech Mono', monospace;
+    font-size: 12px; color: var(--dim);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+    display: flex; align-items: center; gap: 8px;
+  }
+  #model-display .active-model { color: var(--cyan); }
+
+  #messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; scroll-behavior: smooth; }
+  #messages::-webkit-scrollbar { width: 4px; }
+  #messages::-webkit-scrollbar-track { background: var(--bg); }
+  #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .msg { max-width: 85%; padding: 10px 14px; border-radius: 2px; line-height: 1.6; font-size: 14px; }
+  .msg-user { align-self: flex-end; background: rgba(0,212,255,.08); border: 1px solid rgba(0,212,255,.2); color: #d0f0ff; }
+  .msg-assistant { align-self: flex-start; background: var(--bg2); border: 1px solid var(--border); color: #c8e8f0; }
+  .msg-assistant::before { content: attr(data-model); display: block; font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--dim); margin-bottom: 6px; letter-spacing: 1px; }
+
+  .cursor { display: inline-block; width: 8px; height: 14px; background: var(--cyan); animation: blink .7s step-end infinite; vertical-align: text-bottom; margin-left: 2px; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .msg pre { background: #020608; border: 1px solid var(--border); border-left: 3px solid var(--cyan); padding: 10px 12px; margin: 8px 0; overflow-x: auto; border-radius: 0 2px 2px 0; }
+  .msg code { font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--green); }
+  .msg p:not(:last-child) { margin-bottom: 6px; }
+  .msg strong { color: var(--cyan); }
+
+  #input-area { border-top: 1px solid var(--border); padding: 12px 16px; display: flex; gap: 10px; align-items: flex-end; flex-shrink: 0; background: var(--bg2); }
+  #user-input { flex: 1; background: var(--bg3); border: 1px solid var(--border); color: #d0f0ff; font-family: 'Rajdhani', sans-serif; font-size: 15px; padding: 10px 12px; resize: none; outline: none; min-height: 42px; max-height: 200px; border-radius: 2px; line-height: 1.5; overflow-y: auto; }
+  #user-input:focus { border-color: var(--cyan); }
+  #user-input::placeholder { color: var(--dim); }
+
+  #send-btn { background: rgba(0,212,255,.1); border: 1px solid var(--cyan); color: var(--cyan); font-family: 'Orbitron', sans-serif; font-size: 12px; padding: 10px 16px; cursor: pointer; letter-spacing: 2px; transition: all .15s; border-radius: 2px; white-space: nowrap; height: 42px; }
+  #send-btn:hover:not(:disabled) { background: rgba(0,212,255,.2); box-shadow: 0 0 12px rgba(0,212,255,.3); }
+  #send-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  #empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; flex: 1; opacity: .3; }
+  #empty-state .big-logo { font-family: 'Orbitron', sans-serif; font-size: 48px; font-weight: 900; color: var(--cyan); letter-spacing: 8px; }
+  #empty-state .sub { font-family: 'Share Tech Mono', monospace; font-size: 13px; color: var(--dim); letter-spacing: 3px; }
+
+  /* ── FINETUNE PANEL ── */
+  #finetune-panel { flex: 1; display: none; overflow: hidden; }
+  #finetune-panel.visible { display: flex; }
+
+  /* Left: config column */
+  #ft-config {
+    width: 300px; min-width: 300px;
+    background: var(--bg2); border-right: 1px solid var(--border);
+    overflow-y: auto; display: flex; flex-direction: column;
+    padding-bottom: 12px;
+  }
+  #ft-config::-webkit-scrollbar { width: 4px; }
+  #ft-config::-webkit-scrollbar-track { background: var(--bg); }
+  #ft-config::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .ft-section { border-bottom: 1px solid var(--border); padding: 10px 0; }
+  .ft-section-title {
+    font-family: 'Orbitron', sans-serif; font-size: 10px;
+    letter-spacing: 2px; color: var(--dim);
+    padding: 0 14px 8px; text-transform: uppercase;
+  }
+
+  .ft-field { padding: 4px 14px; display: flex; flex-direction: column; gap: 3px; }
+  .ft-label { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--dim); letter-spacing: 1px; text-transform: uppercase; }
+  .ft-input {
+    background: var(--bg3); border: 1px solid var(--border);
+    color: #c8e8f0; font-family: 'Share Tech Mono', monospace;
+    font-size: 12px; padding: 5px 8px; outline: none;
+    border-radius: 2px; width: 100%;
+  }
+  .ft-input:focus { border-color: var(--cyan); }
+  .ft-input::placeholder { color: var(--dim); }
+  select.ft-input { cursor: pointer; }
+  select.ft-input option { background: var(--bg3); }
+
+  .ft-row { padding: 4px 14px; display: flex; align-items: center; gap: 10px; }
+  .ft-row .ft-label { width: 80px; flex-shrink: 0; }
+  .ft-row .ft-input { flex: 1; }
+  .ft-row .ft-unit { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--dim); white-space: nowrap; }
+
+  .ft-actions { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+
+  #ft-start-btn {
+    width: 100%; padding: 10px;
+    font-family: 'Orbitron', sans-serif; font-size: 12px; letter-spacing: 2px;
+    background: rgba(0,255,136,.08); border: 1px solid var(--green); color: var(--green);
+    cursor: pointer; border-radius: 2px; transition: all .15s;
+  }
+  #ft-start-btn:hover:not(:disabled) { background: rgba(0,255,136,.15); box-shadow: 0 0 12px rgba(0,255,136,.2); }
+  #ft-start-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  #ft-stop-btn {
+    width: 100%; padding: 8px;
+    font-family: 'Orbitron', sans-serif; font-size: 11px; letter-spacing: 2px;
+    background: rgba(255,51,102,.08); border: 1px solid var(--red); color: var(--red);
+    cursor: pointer; border-radius: 2px; transition: all .15s; display: none;
+  }
+  #ft-stop-btn:hover { background: rgba(255,51,102,.15); }
+  #ft-stop-btn.visible { display: block; }
+
+  /* Right: log + chart + runs */
+  #ft-right {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* Status bar */
+  #ft-status-bar {
+    padding: 8px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 16px;
+    font-family: 'Share Tech Mono', monospace; font-size: 12px;
+    background: var(--bg2); flex-shrink: 0;
+  }
+  .status-badge {
+    padding: 3px 10px; border-radius: 2px; font-size: 10px;
+    font-family: 'Orbitron', sans-serif; letter-spacing: 2px;
+    border: 1px solid var(--dim); color: var(--dim);
+  }
+  .status-badge.idle      { }
+  .status-badge.running   { border-color: var(--amber); color: var(--amber); animation: pulse 1.5s ease-in-out infinite; }
+  .status-badge.done      { border-color: var(--green); color: var(--green); }
+  .status-badge.error     { border-color: var(--red); color: var(--red); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+
+  /* Two columns: log left, chart+runs right */
+  #ft-body { flex: 1; display: flex; overflow: hidden; }
+
+  #ft-log-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid var(--border); }
+  .ft-panel-title { padding: 8px 14px; font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 2px; color: var(--dim); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+
+  #ft-log {
+    flex: 1; overflow-y: auto; padding: 10px 14px;
+    font-family: 'Share Tech Mono', monospace; font-size: 11px;
+    line-height: 1.6; color: #7ab8c0; white-space: pre-wrap; word-break: break-all;
+  }
+  #ft-log::-webkit-scrollbar { width: 4px; }
+  #ft-log::-webkit-scrollbar-track { background: var(--bg); }
+  #ft-log::-webkit-scrollbar-thumb { background: var(--border); }
+  #ft-log .log-error { color: var(--red); }
+  #ft-log .log-loss  { color: var(--amber); }
+  #ft-log .log-info  { color: var(--cyan); }
+  #ft-log .log-done  { color: var(--green); }
+
+  /* Right column: chart + runs */
+  #ft-right-col { width: 340px; min-width: 280px; display: flex; flex-direction: column; overflow: hidden; }
+
+  #ft-chart-wrap { flex: 0 0 200px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  #ft-chart-svg { flex: 1; width: 100%; }
+
+  #ft-no-loss { display: flex; align-items: center; justify-content: center; flex: 1; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--dim); }
+
+  #ft-runs-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  #ft-runs-list { flex: 1; overflow-y: auto; }
+  #ft-runs-list::-webkit-scrollbar { width: 4px; }
+  #ft-runs-list::-webkit-scrollbar-track { background: var(--bg); }
+  #ft-runs-list::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .run-item {
+    padding: 8px 14px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+    font-family: 'Share Tech Mono', monospace; font-size: 11px;
+  }
+  .run-name { flex: 1; color: var(--cyan); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .run-tag { font-size: 9px; padding: 2px 6px; border-radius: 2px; border: 1px solid var(--green); color: var(--green); }
+  .run-date { color: var(--dim); font-size: 10px; }
+  .run-export-btn { font-size: 9px; padding: 2px 8px; cursor: pointer; background: transparent; border: 1px solid var(--purple); color: var(--purple); border-radius: 2px; transition: all .15s; white-space: nowrap; }
+  .run-export-btn:hover { background: rgba(170,68,255,.1); }
+
+  .run-item.selectable { cursor: pointer; }
+  .run-item.selected { background: rgba(0,212,255,.06); box-shadow: inset 2px 0 0 var(--cyan); }
+  .run-tag.lite { border-color: var(--amber); color: var(--amber); }
+  .run-metric { color: var(--dim); font-size: 10px; white-space: nowrap; }
+
+  /* Mode selector (FULL / LITE / TINY) */
+  #ft-mode { display: flex; margin: 0 14px; border: 1px solid var(--border); border-radius: 2px; overflow: hidden; }
+  .ft-mode-btn {
+    flex: 1; padding: 7px 4px; background: transparent; border: none; border-right: 1px solid var(--border);
+    color: var(--dim); font-family: 'Orbitron', sans-serif; font-size: 9px; letter-spacing: 1px;
+    cursor: pointer; transition: all .15s; white-space: nowrap;
+  }
+  .ft-mode-btn:last-child { border-right: none; }
+  .ft-mode-btn:hover { color: var(--cyan); }
+  .ft-mode-btn.active { color: var(--cyan); background: rgba(0,212,255,.08); }
+  #ft-mode-hint { padding: 6px 14px 0; font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--dim); line-height: 1.5; }
+  #ft-est { padding: 8px 14px; font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--dim); }
+  #ft-est span { color: var(--amber); }
+
+  /* Chart legend */
+  #ft-chart-legend { display: none; gap: 12px; padding: 4px 14px 0; font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--dim); }
+  #ft-chart-legend .sw { display: inline-block; width: 14px; height: 0; vertical-align: middle; margin-right: 4px; border-top: 2px solid var(--amber); }
+  #ft-chart-legend .sw.val { border-top: 2px dashed var(--cyan); }
+
+  /* Tiny sample box */
+  #ft-sample-wrap { display: none; flex: 0 0 auto; border-top: 1px solid var(--border); flex-direction: column; max-height: 45%; }
+  #ft-sample-ctrls { display: flex; align-items: center; gap: 8px; padding: 8px 14px; font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--dim); }
+  #ft-sample-ctrls .ft-input { width: 64px; }
+  #ft-sample-out { flex: 1; overflow-y: auto; margin: 0 14px 10px; padding: 8px; background: var(--bg3); border: 1px solid var(--border); border-radius: 2px;
+    font-family: 'Share Tech Mono', monospace; font-size: 11px; line-height: 1.5; color: #c8e8f0; white-space: pre-wrap; min-height: 60px; }
+
+  .ft-empty { padding: 24px; text-align: center; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--dim); }
+
+  /* ── GUIDE PANEL ── */
+  #guide-panel { max-width: 860px; }
+  #guide-panel p { line-height: 1.75; margin-bottom: 10px; }
+  #guide-panel strong { color: var(--cyan); }
+  #guide-panel em { color: var(--amber); font-style: normal; }
+  #guide-panel code { font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--green); background: rgba(0,255,136,.07); padding: 1px 5px; border-radius: 2px; }
+
+  .g-section { display: flex; flex-direction: column; gap: 12px; padding: 24px; background: var(--bg2); border: 1px solid var(--border); border-radius: 2px; }
+
+  .g-title { font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 700; color: var(--cyan); letter-spacing: 2px; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 4px; }
+
+  .g-analogy { background: rgba(255,170,0,.06); border: 1px solid rgba(255,170,0,.25); border-left: 3px solid var(--amber); padding: 12px 16px; border-radius: 0 2px 2px 0; font-size: 14px; line-height: 1.7; }
+  .g-analogy-label { font-family: 'Orbitron', sans-serif; font-size: 9px; letter-spacing: 2px; color: var(--amber); margin-bottom: 6px; }
+
+  .g-callout { padding: 12px 16px; border-radius: 2px; font-size: 14px; line-height: 1.7; }
+  .g-callout-green { background: rgba(0,255,136,.06); border: 1px solid rgba(0,255,136,.25); border-left: 3px solid var(--green); }
+
+  .g-list { padding-left: 18px; display: flex; flex-direction: column; gap: 5px; font-size: 14px; line-height: 1.6; }
+  .g-list li::marker { color: var(--cyan); }
+
+  .g-steps { display: flex; flex-direction: column; gap: 10px; }
+  .g-step { display: flex; gap: 14px; align-items: flex-start; font-size: 14px; line-height: 1.7; }
+  .g-step-num { font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700; color: var(--bg); background: var(--cyan); min-width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+
+  .g-tip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .g-tip { padding: 12px 16px; border-radius: 2px; display: flex; flex-direction: column; gap: 8px; }
+  .g-tip-green { background: rgba(0,255,136,.05); border: 1px solid rgba(0,255,136,.2); }
+  .g-tip-red   { background: rgba(255,51,102,.05); border: 1px solid rgba(255,51,102,.2); }
+  .g-tip-label { font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 2px; }
+  .g-tip-green .g-tip-label { color: var(--green); }
+  .g-tip-red   .g-tip-label { color: var(--red); }
+
+  .g-code { font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--green); background: #020608; border: 1px solid var(--border); border-left: 3px solid var(--cyan); padding: 12px 14px; line-height: 1.8; overflow-x: auto; white-space: pre; }
+
+  .g-params { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-radius: 2px; overflow: hidden; }
+  .g-param-group-label { font-family: 'Orbitron', sans-serif; font-size: 9px; letter-spacing: 2px; color: var(--amber); background: rgba(255,170,0,.06); padding: 8px 16px; border-bottom: 1px solid var(--border); }
+  .g-param { display: grid; grid-template-columns: 160px 90px 1fr; gap: 0; padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; line-height: 1.6; align-items: start; }
+  .g-param:last-child { border-bottom: none; }
+  .g-param:hover { background: rgba(0,212,255,.03); }
+  .g-param-name { font-family: 'Share Tech Mono', monospace; color: var(--cyan); font-size: 12px; padding-top: 2px; }
+  .g-param-default { font-family: 'Share Tech Mono', monospace; color: var(--dim); font-size: 11px; padding-top: 3px; }
+  .g-param-desc { color: #b0d0d8; }
+
+  .g-loss-guide { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-radius: 2px; overflow: hidden; }
+  .g-loss-item { padding: 11px 16px; border-bottom: 1px solid var(--border); font-size: 13px; line-height: 1.6; display: grid; grid-template-columns: 220px 1fr; gap: 16px; }
+  .g-loss-item:last-child { border-bottom: none; }
+  .g-loss-label { font-family: 'Share Tech Mono', monospace; font-size: 12px; font-weight: bold; }
+
+  .g-glossary { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-radius: 2px; overflow: hidden; }
+  .g-term { padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 13px; line-height: 1.6; }
+  .g-term:last-child { border-bottom: none; }
+  .g-term:hover { background: rgba(0,212,255,.03); }
+  .g-term-name { font-family: 'Share Tech Mono', monospace; color: var(--cyan); font-size: 12px; margin-right: 10px; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="logo">LLM///LAB</div>
+  <div class="gpu-stat"><span class="label">GPU</span><span class="value" id="gpu-name">—</span></div>
+  <div class="gpu-stat">
+    <span class="label">VRAM</span>
+    <div id="vram-bar-wrap"><div id="vram-bar"></div></div>
+    <span class="value" id="vram-text">—</span>
+  </div>
+  <div class="gpu-stat"><span class="label">TEMP</span><span class="value" id="gpu-temp">—</span></div>
+  <div class="gpu-stat"><span class="label">UTIL</span><span class="value" id="gpu-util">—</span></div>
+  <div class="topbar-right">
+    <div class="gpu-stat">
+      <div id="ollama-dot"></div>
+      <span class="label">OLLAMA</span>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Models</div>
+      <input id="model-search" type="text" placeholder="filter models...">
+      <div id="model-list"></div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Parameters</div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">TEMP</span>
+        <input type="range" id="temp-slider" min="0" max="2" step="0.05" value="0.7">
+        <span class="ctrl-value" id="temp-val">0.70</span>
+      </div>
+    </div>
+    <div class="sidebar-section" style="flex-shrink:0">
+      <div class="sidebar-section-title">System Prompt</div>
+      <textarea id="sys-prompt" placeholder="Optional system prompt..."></textarea>
+    </div>
+    <div class="sidebar-actions">
+      <button class="btn btn-danger" id="clear-btn">CLEAR</button>
+      <button class="btn btn-green" id="export-btn">EXPORT</button>
+    </div>
+  </div>
+
+  <!-- CONTENT AREA -->
+  <div id="content-wrap">
+
+    <!-- TAB BAR -->
+    <div id="tab-bar">
+      <button class="tab-btn active" data-tab="chat">CHAT</button>
+      <button class="tab-btn" data-tab="finetune">FINETUNE LAB</button>
+      <button class="tab-btn" data-tab="guide">GUIDE</button>
+    </div>
+
+    <!-- CHAT PANEL -->
+    <div id="chat-panel">
+      <div id="model-display">
+        <span style="font-size:10px;letter-spacing:1px;color:var(--dim)">ACTIVE MODEL //</span>
+        <span class="active-model" id="active-model-label">none selected</span>
+      </div>
+      <div id="messages">
+        <div id="empty-state">
+          <div class="big-logo">∅</div>
+          <div class="sub">SELECT A MODEL TO BEGIN</div>
+        </div>
+      </div>
+      <div id="input-area">
+        <textarea id="user-input" placeholder="Enter prompt... (Shift+Enter for newline)" rows="1"></textarea>
+        <button id="send-btn" disabled>SEND</button>
+      </div>
+    </div>
+
+    <!-- FINETUNE PANEL -->
+    <div id="finetune-panel">
+
+      <!-- Left: config -->
+      <div id="ft-config">
+
+        <div class="ft-section">
+          <div class="ft-section-title">Mode</div>
+          <div id="ft-mode">
+            <button class="ft-mode-btn active" data-mode="full">FULL (QLoRA)</button>
+            <button class="ft-mode-btn" data-mode="lite">LITE LoRA</button>
+            <button class="ft-mode-btn" data-mode="tiny">TINY GPT</button>
+          </div>
+          <div id="ft-mode-hint"></div>
+        </div>
+
+        <div class="ft-section" data-modes="full lite">
+          <div class="ft-section-title">Base Model</div>
+          <div class="ft-field" data-modes="full">
+            <span class="ft-label">HuggingFace ID or local path</span>
+            <input class="ft-input" id="ft-base-model" type="text"
+              placeholder="e.g. meta-llama/Meta-Llama-3-8B-Instruct"
+              value="meta-llama/Meta-Llama-3-8B-Instruct">
+          </div>
+          <div class="ft-field" data-modes="lite">
+            <span class="ft-label">Small base model</span>
+            <select class="ft-input" id="ft-base-lite">
+              <option value="HuggingFaceTB/SmolLM2-135M-Instruct">SmolLM2-135M-Instruct</option>
+              <option value="Qwen/Qwen2.5-0.5B-Instruct">Qwen2.5-0.5B-Instruct</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="ft-section" data-modes="full lite">
+          <div class="ft-section-title">Dataset</div>
+          <div class="ft-field">
+            <span class="ft-label">JSONL file in finetune/datasets/</span>
+            <select class="ft-input" id="ft-dataset">
+              <option value="">— loading... —</option>
+            </select>
+          </div>
+          <div class="ft-field" style="margin-top:4px">
+            <span class="ft-label" id="ft-dataset-info" style="color:var(--dim)"></span>
+          </div>
+          <div class="ft-field">
+            <span class="ft-label">Output adapter name</span>
+            <input class="ft-input" id="ft-output-name" type="text" placeholder="my-adapter">
+          </div>
+        </div>
+
+        <div class="ft-section" data-modes="full lite">
+          <div class="ft-section-title">Training</div>
+          <div class="ft-row">
+            <span class="ft-label">EPOCHS</span>
+            <input class="ft-input" id="ft-epochs" type="number" value="3" min="1" max="20">
+          </div>
+          <div class="ft-row">
+            <span class="ft-label">BATCH</span>
+            <input class="ft-input" id="ft-batch" type="number" value="4" min="1" max="32">
+            <span class="ft-unit">per device</span>
+          </div>
+          <div class="ft-row">
+            <span class="ft-label">GRAD ACC</span>
+            <input class="ft-input" id="ft-grad-accum" type="number" value="4" min="1" max="32">
+          </div>
+          <div class="ft-row">
+            <span class="ft-label">LR</span>
+            <input class="ft-input" id="ft-lr" type="text" value="2e-4">
+          </div>
+          <div class="ft-row">
+            <span class="ft-label">MAX LEN</span>
+            <input class="ft-input" id="ft-max-len" type="number" value="2048" min="128" max="8192">
+            <span class="ft-unit">tokens</span>
+          </div>
+        </div>
+
+        <div class="ft-section" data-modes="lite">
+          <div class="ft-section-title">Lite Schedule</div>
+          <div class="ft-row">
+            <span class="ft-label">MAX STEPS</span>
+            <input class="ft-input" id="ft-max-steps" type="number" value="200" min="1">
+            <span class="ft-unit">overrides epochs</span>
+          </div>
+          <div class="ft-row">
+            <span class="ft-label">VAL SPLIT</span>
+            <input class="ft-input" id="ft-val-split" type="text" value="0.1">
+          </div>
+          <div class="ft-row">
+            <span class="ft-label">EVAL EVERY</span>
+            <input class="ft-input" id="ft-eval-steps" type="number" value="20" min="1">
+            <span class="ft-unit">steps</span>
+          </div>
+          <div class="ft-row">
+            <span class="ft-label">MAX SAMPLES</span>
+            <input class="ft-input" id="ft-max-samples" type="number" value="500" min="1">
+          </div>
+        </div>
+
+        <div class="ft-section" data-modes="full lite">
+          <div class="ft-section-title">LoRA Config</div>
+          <div class="ft-row">
+            <span class="ft-label">RANK (r)</span>
+            <input class="ft-input" id="ft-lora-r" type="number" value="16" min="4" max="128">
+          </div>
+          <div class="ft-row">
+            <span class="ft-label">ALPHA</span>
+            <input class="ft-input" id="ft-lora-alpha" type="number" value="32" min="4" max="256">
+          </div>
+          <div class="ft-row">
+            <span class="ft-label">DROPOUT</span>
+            <input class="ft-input" id="ft-lora-dropout" type="text" value="0.05">
+          </div>
+        </div>
+
+        <div class="ft-section" data-modes="tiny">
+          <div class="ft-section-title">Tiny GPT</div>
+          <div class="ft-field">
+            <span class="ft-label">Corpus in tiny_lab/data/</span>
+            <select class="ft-input" id="ft-tiny-corpus">
+              <option value="">— loading... —</option>
+            </select>
+          </div>
+          <div class="ft-field">
+            <span class="ft-label">Run name</span>
+            <input class="ft-input" id="ft-tiny-run-name" type="text" placeholder="shakespeare-1">
+          </div>
+          <div class="ft-row">
+            <span class="ft-label">STEPS</span>
+            <input class="ft-input" id="ft-tiny-steps" type="number" value="2000" min="1">
+          </div>
+          <div class="ft-row">
+            <span class="ft-label">BATCH</span>
+            <input class="ft-input" id="ft-tiny-batch" type="number" value="32" min="1">
+          </div>
+          <div class="ft-row">
+            <span class="ft-label">LR</span>
+            <input class="ft-input" id="ft-tiny-lr" type="text" value="3e-4">
+          </div>
+          <div class="ft-row">
+            <span class="ft-label">BLOCK</span>
+            <input class="ft-input" id="ft-tiny-block" type="number" value="128" min="8">
+            <span class="ft-unit">chars ctx</span>
+          </div>
+          <div class="ft-row">
+            <span class="ft-label">LAYERS</span>
+            <input class="ft-input" id="ft-tiny-layers" type="number" value="4" min="1">
+          </div>
+          <div class="ft-row">
+            <span class="ft-label">HEADS</span>
+            <input class="ft-input" id="ft-tiny-heads" type="number" value="4" min="1">
+          </div>
+          <div class="ft-row">
+            <span class="ft-label">EMBD</span>
+            <input class="ft-input" id="ft-tiny-embd" type="number" value="128" min="8">
+          </div>
+          <div class="ft-row">
+            <span class="ft-label">EVAL EVERY</span>
+            <input class="ft-input" id="ft-tiny-eval" type="number" value="100" min="1">
+          </div>
+          <div class="ft-row">
+            <span class="ft-label">DEVICE</span>
+            <select class="ft-input" id="ft-tiny-device">
+              <option value="auto">auto</option>
+              <option value="cuda">cuda</option>
+              <option value="cpu">cpu</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="ft-est"></div>
+
+        <div class="ft-actions">
+          <button id="ft-start-btn">▶ START TRAINING</button>
+          <button id="ft-stop-btn">■ STOP</button>
+        </div>
+      </div>
+
+      <!-- Right: status + log + chart + runs -->
+      <div id="ft-right">
+        <div id="ft-status-bar">
+          <span class="status-badge idle" id="ft-status-badge">IDLE</span>
+          <span id="ft-status-text" style="color:var(--dim)">No run active</span>
+          <span id="ft-elapsed" style="color:var(--dim);margin-left:auto"></span>
+        </div>
+
+        <div id="ft-body">
+
+          <!-- Training log -->
+          <div id="ft-log-wrap">
+            <div class="ft-panel-title">TRAINING LOG</div>
+            <div id="ft-log">Waiting for training to start...</div>
+          </div>
+
+          <!-- Chart + runs -->
+          <div id="ft-right-col">
+            <div id="ft-chart-wrap">
+              <div class="ft-panel-title">LOSS CURVE</div>
+              <div id="ft-chart-legend"><span><span class="sw"></span>train</span><span><span class="sw val"></span>val</span></div>
+              <div id="ft-no-loss">no data yet</div>
+              <svg id="ft-chart-svg" style="display:none" viewBox="0 0 300 140" preserveAspectRatio="none"></svg>
+            </div>
+
+            <div id="ft-runs-wrap">
+              <div class="ft-panel-title">COMPLETED RUNS</div>
+              <div id="ft-runs-list"><div class="ft-empty">no runs yet</div></div>
+            </div>
+
+            <div id="ft-sample-wrap">
+              <div class="ft-panel-title">SAMPLE <span id="ft-sample-run" style="color:var(--cyan)"></span></div>
+              <div id="ft-sample-ctrls">
+                TEMP <input class="ft-input" id="ft-sample-temp" type="text" value="0.8">
+                CHARS <input class="ft-input" id="ft-sample-n" type="number" value="300" min="1" max="2000">
+                <button class="btn" id="ft-sample-btn">SAMPLE</button>
+              </div>
+              <div id="ft-sample-out">select a run with a checkpoint, then sample</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div><!-- /finetune-panel -->
+
+    <!-- GUIDE PANEL -->
+    <div id="guide-panel" style="display:none;flex:1;overflow-y:auto;padding:32px 40px;flex-direction:column;gap:32px;">
+
+      <div style="font-family:'Orbitron',sans-serif;font-size:22px;font-weight:900;color:var(--cyan);letter-spacing:4px;text-shadow:0 0 20px var(--cyan)">
+        FINE-TUNING // FIELD GUIDE
+      </div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--dim);margin-top:-20px">
+        A plain-English guide to training your own LLMs on this machine.
+      </div>
+
+      <!-- SECTION 1 -->
+      <div class="g-section">
+        <div class="g-title">01 &mdash; What is Fine-Tuning?</div>
+        <p>A large language model (LLM) is pre-trained on hundreds of billions of words from the internet, books, and code. That gives it broad general knowledge — it can write, reason, code, and answer questions — but it's not specialized for anything in particular.</p>
+        <p><strong>Fine-tuning</strong> is the process of taking that pre-trained model and teaching it to behave differently by showing it examples of exactly what you want.</p>
+        <div class="g-analogy">
+          <div class="g-analogy-label">ANALOGY</div>
+          Think of the base model as a smart new hire with a great education. Fine-tuning is their on-the-job training. You don't re-teach them everything — you just show them the specifics of your operation until they get it right.
+        </div>
+        <p>Examples of what you can do with fine-tuning:</p>
+        <ul class="g-list">
+          <li>Teach a model your writing style or tone</li>
+          <li>Train it on domain-specific knowledge (medical, legal, code)</li>
+          <li>Make it always respond in a certain format (JSON, bullet points)</li>
+          <li>Create a character or persona it consistently maintains</li>
+          <li>Improve performance on a specific narrow task</li>
+        </ul>
+      </div>
+
+      <!-- SECTION 2 -->
+      <div class="g-section">
+        <div class="g-title">02 &mdash; Why QLoRA? (The VRAM Problem)</div>
+        <p>A 7-8 billion parameter model stores its weights as floating-point numbers. Full-precision, that's about <strong>28GB of VRAM</strong>. Training it normally requires even more — usually 40-80GB. Your RTX 4060 has 8GB.</p>
+        <p><strong>QLoRA</strong> solves this with two tricks stacked together:</p>
+
+        <div class="g-steps">
+          <div class="g-step">
+            <div class="g-step-num">1</div>
+            <div>
+              <strong>Quantization (the "Q")</strong><br>
+              Compress the base model's weights from 32-bit floats down to 4-bit integers. This shrinks a 7B model from ~28GB to ~4-5GB — small enough to fit in your GPU. There's a tiny quality loss, but it's barely noticeable in practice.
+            </div>
+          </div>
+          <div class="g-step">
+            <div class="g-step-num">2</div>
+            <div>
+              <strong>LoRA — Low-Rank Adaptation</strong><br>
+              Instead of rewriting the entire model (impossible at 4-bit), LoRA adds small extra <em>adapter layers</em> on top of the frozen base. Only these adapters get trained. They're tiny — usually 50-200MB versus 4GB for the base model. After training, you save just the adapter.
+            </div>
+          </div>
+        </div>
+
+        <div class="g-callout g-callout-green">
+          <strong>Result:</strong> Fine-tune a 7-8B model in ~5-6GB VRAM on your RTX 4060. Without QLoRA, you'd need an A100 (80GB) in a data center.
+        </div>
+      </div>
+
+      <!-- SECTION 3 -->
+      <div class="g-section">
+        <div class="g-title">03 &mdash; Your Dataset</div>
+        <p>The dataset is the most important part. The model will imitate exactly what it sees, so your data quality directly determines output quality — <em>"garbage in, garbage out"</em> applies completely here.</p>
+
+        <p>This system uses a simple <strong>instruction / output</strong> format. Each training example is one line of JSON:</p>
+
+        <pre class="g-code">{"instruction": "Write a haiku about neural networks.",
+ "output": "Weights shift like tides /\nGradients flow through the dark /\nLoss finds its bottom"}</pre>
+
+        <p>Save as a <code>.jsonl</code> file (one JSON object per line) and drop it into <code>finetune/datasets/</code>.</p>
+
+        <div class="g-tip-grid">
+          <div class="g-tip g-tip-green">
+            <div class="g-tip-label">DO</div>
+            <ul class="g-list">
+              <li>100–1000 high-quality examples for specialization</li>
+              <li>Consistent style and format across all examples</li>
+              <li>Diverse coverage of the task you care about</li>
+              <li>Proofread outputs — errors get learned too</li>
+            </ul>
+          </div>
+          <div class="g-tip g-tip-red">
+            <div class="g-tip-label">AVOID</div>
+            <ul class="g-list">
+              <li>Duplicate or near-duplicate examples</li>
+              <li>Mixed writing styles (unless intentional)</li>
+              <li>Very long outputs with 2048 token limit — they get cut off</li>
+              <li>Fewer than ~50 examples — not enough signal</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 4 -->
+      <div class="g-section">
+        <div class="g-title">04 &mdash; What Happens During Training</div>
+        <div class="g-steps">
+          <div class="g-step">
+            <div class="g-step-num">1</div>
+            <div><strong>Load</strong> — The base model loads in 4-bit. LoRA adapters attach on top. Only adapter weights are marked as trainable.</div>
+          </div>
+          <div class="g-step">
+            <div class="g-step-num">2</div>
+            <div><strong>Forward pass</strong> — A batch of examples gets fed in. The model predicts the output tokens one by one.</div>
+          </div>
+          <div class="g-step">
+            <div class="g-step-num">3</div>
+            <div><strong>Loss calculation</strong> — The predicted tokens are compared to the real outputs. The difference is called <em>loss</em>. High loss = wrong. Low loss = right.</div>
+          </div>
+          <div class="g-step">
+            <div class="g-step-num">4</div>
+            <div><strong>Backward pass</strong> — The loss is used to calculate how each adapter weight contributed to the error (this is the "gradient"). Weights that made things worse get nudged in the right direction.</div>
+          </div>
+          <div class="g-step">
+            <div class="g-step-num">5</div>
+            <div><strong>Repeat</strong> — This runs for every batch, for every epoch. The loss curve (visible in the Finetune Lab tab) shows the model getting smarter over time.</div>
+          </div>
+          <div class="g-step">
+            <div class="g-step-num">6</div>
+            <div><strong>Save</strong> — The adapter weights are saved to <code>finetune/exports/</code>. The base model is unchanged.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 5 -->
+      <div class="g-section">
+        <div class="g-title">05 &mdash; Parameter Reference</div>
+        <p>These are the knobs in the Finetune Lab. Here's what they actually do:</p>
+
+        <div class="g-params">
+
+          <div class="g-param-group-label">TRAINING PARAMETERS</div>
+
+          <div class="g-param">
+            <div class="g-param-name">Epochs</div>
+            <div class="g-param-default">default: 3</div>
+            <div class="g-param-desc">How many times the model sees your <em>entire</em> dataset. More epochs = more learning, but past a point the model starts <em>overfitting</em> (memorizing instead of generalizing). For small datasets (&lt;500 examples), 3-5 is typical. Watch the loss curve — if it stops dropping, stop training.</div>
+          </div>
+
+          <div class="g-param">
+            <div class="g-param-name">Batch Size</div>
+            <div class="g-param-default">default: 4</div>
+            <div class="g-param-desc">How many training examples to process at once before updating the weights. Larger batches = more stable gradient estimates, but more VRAM. On your 8GB GPU, 4 is safe for most 7-8B models. Going to 8 might work if your examples are short.</div>
+          </div>
+
+          <div class="g-param">
+            <div class="g-param-name">Gradient Accumulation</div>
+            <div class="g-param-default">default: 4</div>
+            <div class="g-param-desc">A trick to simulate a larger batch without using more VRAM. Instead of updating after every batch, it accumulates the gradients across N steps, then updates. <strong>Effective batch = Batch Size × Grad Accum</strong>. Default gives you an effective batch of 16, which is a good target.</div>
+          </div>
+
+          <div class="g-param">
+            <div class="g-param-name">Learning Rate</div>
+            <div class="g-param-default">default: 2e-4</div>
+            <div class="g-param-desc">How big a step to take when adjusting weights after each update. Think of it as the size of the nudge. <strong>Too high:</strong> training is unstable, loss bounces around. <strong>Too low:</strong> training barely does anything. 2e-4 (that's 0.0002) is a well-tested default for QLoRA. If loss is chaotic, try 1e-4.</div>
+          </div>
+
+          <div class="g-param">
+            <div class="g-param-name">Max Length</div>
+            <div class="g-param-default">default: 2048</div>
+            <div class="g-param-desc">Maximum number of tokens per training example. Examples longer than this get cut off. A token is roughly ¾ of a word — 2048 tokens ≈ 1500 words. Reduce to 1024 if you're running out of VRAM during training.</div>
+          </div>
+
+          <div class="g-param-group-label" style="margin-top:12px">LORA PARAMETERS</div>
+
+          <div class="g-param">
+            <div class="g-param-name">Rank (r)</div>
+            <div class="g-param-default">default: 16</div>
+            <div class="g-param-desc">The size of the LoRA adapter matrices. Higher rank = the adapter can capture more complex patterns = more capacity to learn, but also more VRAM and slower training. r=16 is the sweet spot for most tasks. Use r=32 or r=64 if the task is complex and you're not memory-constrained.</div>
+          </div>
+
+          <div class="g-param">
+            <div class="g-param-name">Alpha</div>
+            <div class="g-param-default">default: 32</div>
+            <div class="g-param-desc">A scaling factor applied to the LoRA updates. The effective learning scale is alpha/r. The convention is to set alpha = 2× rank (so r=16 → alpha=32). You can leave this alone unless you have a specific reason to change it.</div>
+          </div>
+
+          <div class="g-param">
+            <div class="g-param-name">Dropout</div>
+            <div class="g-param-default">default: 0.05</div>
+            <div class="g-param-desc">During training, randomly "turns off" 5% of adapter connections on each pass. This prevents overfitting by stopping the model from relying too heavily on any single path. 0.05 is a gentle regularization — you probably won't need to change this.</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- SECTION 6 -->
+      <div class="g-section">
+        <div class="g-title">06 &mdash; Reading the Loss Curve</div>
+        <p>The loss curve is the heartbeat monitor of your training run. Loss measures how wrong the model's predictions are — lower is better, and you want it to trend downward.</p>
+
+        <div class="g-loss-guide">
+          <div class="g-loss-item">
+            <div class="g-loss-label" style="color:var(--cyan)">Starting loss 2.0 – 4.0</div>
+            <div>Normal. The model hasn't learned your data yet.</div>
+          </div>
+          <div class="g-loss-item">
+            <div class="g-loss-label" style="color:var(--green)">Loss drops quickly in epoch 1</div>
+            <div>Great — the model is picking up the pattern in your data.</div>
+          </div>
+          <div class="g-loss-item">
+            <div class="g-loss-label" style="color:var(--green)">Loss levels off</div>
+            <div>The model has learned what it can from your data. Stop here or let it run to the end of your epoch count — not much benefit after this.</div>
+          </div>
+          <div class="g-loss-item">
+            <div class="g-loss-label" style="color:var(--amber)">Loss rises after dropping</div>
+            <div>Overfitting — the model is memorizing your training examples instead of generalizing. Use fewer epochs, or add more diverse training data.</div>
+          </div>
+          <div class="g-loss-item">
+            <div class="g-loss-label" style="color:var(--red)">Loss stays high and barely moves</div>
+            <div>Something is wrong. Common causes: learning rate too low, data format issues, or the base model isn't a good fit for the task.</div>
+          </div>
+          <div class="g-loss-item">
+            <div class="g-loss-label" style="color:var(--red)">Loss explodes (NaN or >10)</div>
+            <div>Learning rate is too high. Lower it by 10× and restart.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 7 -->
+      <div class="g-section">
+        <div class="g-title">07 &mdash; After Training: Getting Your Model</div>
+        <div class="g-steps">
+          <div class="g-step">
+            <div class="g-step-num">1</div>
+            <div><strong>Adapter saved</strong> — Training produces a small adapter folder in <code>finetune/exports/your-name/</code>. This is ~50-200MB and contains only the LoRA weights, not the full model.</div>
+          </div>
+          <div class="g-step">
+            <div class="g-step-num">2</div>
+            <div><strong>Merge &amp; export to GGUF</strong> — Click <em>"→ GGUF"</em> in the completed runs list. It will show you the command to run <code>export_gguf.py</code>, which merges the adapter back into the base model and converts it to GGUF format.</div>
+          </div>
+          <div class="g-step">
+            <div class="g-step-num">3</div>
+            <div><strong>GGUF appears in the model list</strong> — The exported file lands in <code>models/shared/</code> (or <code>$LLM_LAB_SHARED_MODELS_DIR</code>). The registry rescans on refresh, so it shows up in the Chat sidebar without a restart.</div>
+          </div>
+          <div class="g-step">
+            <div class="g-step-num">4</div>
+            <div><strong>Test it</strong> — Select your fine-tuned model in the Chat tab and see how it behaves. Compare it to the base model on the same prompts.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 8: Glossary -->
+      <div class="g-section">
+        <div class="g-title">08 &mdash; Glossary</div>
+        <div class="g-glossary">
+          <div class="g-term"><span class="g-term-name">Token</span> A word or word-piece. "Fine-tuning" = 3 tokens. Most models have a limit of 4096–128k tokens per context. Your VRAM limits how many you can use for training.</div>
+          <div class="g-term"><span class="g-term-name">VRAM</span> GPU memory. Your RTX 4060 has 8GB. Every model, batch, and gradient lives here during training. Running out = crash.</div>
+          <div class="g-term"><span class="g-term-name">Parameters</span> The numbers inside a model that encode its knowledge. A "7B model" has 7 billion of these numbers.</div>
+          <div class="g-term"><span class="g-term-name">Quantization</span> Compressing weights from 32-bit floats to 4-bit integers. Like reducing a photo from RAW to JPEG — smaller, tiny quality loss, still very usable.</div>
+          <div class="g-term"><span class="g-term-name">LoRA</span> Low-Rank Adaptation. Adds small trainable matrices alongside frozen model weights instead of retraining everything.</div>
+          <div class="g-term"><span class="g-term-name">QLoRA</span> LoRA applied to a 4-bit quantized base model. Enables fine-tuning on consumer GPUs.</div>
+          <div class="g-term"><span class="g-term-name">Adapter</span> The LoRA weights that come out of training. Tiny file, stacks on top of any copy of the base model.</div>
+          <div class="g-term"><span class="g-term-name">GGUF</span> A file format for running models locally (used by llama.cpp and this system). After merging your adapter into the base model, you export to GGUF to use it in the Chat tab.</div>
+          <div class="g-term"><span class="g-term-name">Loss</span> A number measuring how wrong the model's predictions are. You want this to go down during training.</div>
+          <div class="g-term"><span class="g-term-name">Epoch</span> One full pass through your entire training dataset.</div>
+          <div class="g-term"><span class="g-term-name">Gradient</span> The direction and size of the weight adjustment needed to reduce loss. Calculated automatically via backpropagation.</div>
+          <div class="g-term"><span class="g-term-name">Overfitting</span> When the model memorizes your training data instead of learning the underlying pattern. Signs: loss goes up late in training, model outputs near-exact copies of training examples.</div>
+          <div class="g-term"><span class="g-term-name">Inference</span> Using the model to generate output — what happens in the Chat tab. As opposed to training.</div>
+          <div class="g-term"><span class="g-term-name">Base model</span> The pre-trained foundation (e.g. Llama 3, Mistral, Qwen). You're not changing this — you're adding a LoRA adapter on top of it.</div>
+        </div>
+      </div>
+
+      <div style="height:40px"></div>
+    </div><!-- /guide-panel -->
+
+  </div><!-- /content-wrap -->
+</div><!-- /main -->
+
+<script>
+const API = 'http://localhost:8000';
+
+// ── GPU / health polling ──────────────────────────────────────────────────────
+async function pollGpu() {
+  try {
+    const d = await fetch(`${API}/api/gpu`).then(r => r.json());
+    if (d.error) return;
+    document.getElementById('gpu-name').textContent = d.name.replace('NVIDIA ', '');
+    const pct = Math.round(d.vram_used_mb / d.vram_total_mb * 100);
+    document.getElementById('vram-bar').style.width = pct + '%';
+    document.getElementById('vram-text').textContent = `${d.vram_used_mb}/${d.vram_total_mb}MB`;
+    const t = document.getElementById('gpu-temp');
+    t.textContent = d.temp_c + '°C';
+    t.style.color = d.temp_c > 80 ? 'var(--red)' : d.temp_c > 65 ? 'var(--amber)' : 'var(--green)';
+    document.getElementById('gpu-util').textContent = d.utilization_pct + '%';
+  } catch (_) {}
+}
+async function pollHealth() {
+  try {
+    const d = await fetch(`${API}/api/health`).then(r => r.json());
+    document.getElementById('ollama-dot').className = d.ollama ? 'ok' : 'err';
+  } catch (_) { document.getElementById('ollama-dot').className = 'err'; }
+}
+pollGpu(); pollHealth();
+setInterval(pollGpu, 5000);
+setInterval(pollHealth, 5000);
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.getElementById('chat-panel').style.display   = tab === 'chat'  ? 'flex' : 'none';
+    document.getElementById('guide-panel').style.display  = tab === 'guide' ? 'flex' : 'none';
+    const ftPanel = document.getElementById('finetune-panel');
+    ftPanel.classList.toggle('visible', tab === 'finetune');
+    if (tab === 'finetune') { loadDatasets(); loadRuns(); }
+  });
+});
+
+// ── Model list ────────────────────────────────────────────────────────────────
+let selectedModel = null, history = [], streaming = false, allModels = [];
+
+async function loadModels() {
+  try {
+    const d = await fetch(`${API}/api/models?include_lab=1`).then(r => r.json());
+    allModels = d.models || [];
+    renderModels('');
+  } catch (_) {
+    document.getElementById('model-list').innerHTML =
+      '<div style="padding:12px;color:var(--red);font-size:11px;font-family:\'Share Tech Mono\',monospace">backend offline</div>';
+  }
+}
+function renderModels(filter) {
+  const q = filter.toLowerCase();
+  const list = allModels.filter(m => m.id.toLowerCase().includes(q));
+  const ollama = list.filter(m => m.source === 'ollama');
+  const gguf    = list.filter(m => m.source === 'gguf' && m.scope !== 'lab');
+  const lab     = list.filter(m => m.scope === 'lab');
+  let html = '';
+  if (ollama.length) {
+    html += '<div class="model-group-label">// OLLAMA</div>';
+    for (const m of ollama) {
+      const active = m.id === selectedModel ? ' active' : '';
+      html += `<div class="model-item${active}" data-id="${m.id}" title="${m.id}">${m.id.replace(/:latest$/,'')}</div>`;
+    }
+  }
+  if (gguf.length) {
+    html += '<div class="model-group-label">// LOCAL GGUF</div>';
+    for (const m of gguf) {
+      const active = m.id === selectedModel ? ' active' : '';
+      html += `<div class="model-item${active}" data-id="${m.id}" title="${m.id}">${m.id}</div>`;
+    }
+  }
+  if (lab.length) {
+    html += '<div class="model-group-label">// LAB (LITE)</div>';
+    for (const m of lab) {
+      const active = m.id === selectedModel ? ' active' : '';
+      html += `<div class="model-item${active}" data-id="${m.id}" title="${m.description}">${m.id}</div>`;
+    }
+  }
+  const el = document.getElementById('model-list');
+  el.innerHTML = html;
+  el.querySelectorAll('.model-item').forEach(el => {
+    el.addEventListener('click', () => selectModel(el.dataset.id));
+  });
+}
+function selectModel(id) {
+  if (id === selectedModel) return;
+  selectedModel = id;
+  history = [];
+  document.getElementById('active-model-label').textContent = id;
+  document.getElementById('send-btn').disabled = streaming;
+  document.getElementById('messages').innerHTML =
+    `<div id="empty-state"><div class="big-logo">∅</div><div class="sub">SELECT A MODEL TO BEGIN</div></div>`;
+  renderModels(document.getElementById('model-search').value);
+}
+document.getElementById('model-search').addEventListener('input', e => renderModels(e.target.value));
+
+// ── Temperature ───────────────────────────────────────────────────────────────
+const tempSlider = document.getElementById('temp-slider');
+const tempVal    = document.getElementById('temp-val');
+tempSlider.addEventListener('input', () => {
+  tempVal.textContent = parseFloat(tempSlider.value).toFixed(2);
+});
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
+function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function renderMarkdown(text) {
+  text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, l, c) => `<pre><code>${escapeHtml(c.trim())}</code></pre>`);
+  text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/\n/g, '<br>');
+  return text;
+}
+function clearEmpty() { const e = document.getElementById('empty-state'); if (e) e.remove(); }
+function scrollBottom() { const m = document.getElementById('messages'); m.scrollTop = m.scrollHeight; }
+function appendUserMsg(content) {
+  clearEmpty();
+  const d = document.createElement('div');
+  d.className = 'msg msg-user';
+  d.innerHTML = escapeHtml(content).replace(/\n/g,'<br>');
+  document.getElementById('messages').appendChild(d); scrollBottom();
+}
+function createAssistantBubble() {
+  clearEmpty();
+  const d = document.createElement('div');
+  d.className = 'msg msg-assistant'; d.dataset.model = selectedModel;
+  d.innerHTML = '<span class="cursor"></span>';
+  document.getElementById('messages').appendChild(d); scrollBottom();
+  return d;
+}
+async function sendMessage() {
+  if (!selectedModel || streaming) return;
+  const input = document.getElementById('user-input');
+  const content = input.value.trim(); if (!content) return;
+  input.value = ''; input.style.height = 'auto';
+  history.push({ role: 'user', content });
+  appendUserMsg(content);
+  streaming = true; document.getElementById('send-btn').disabled = true;
+  const bubble = createAssistantBubble();
+  let fullText = '';
+  try {
+    const resp = await fetch(`${API}/api/chat`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: selectedModel, messages: history,
+        temperature: parseFloat(tempSlider.value),
+        system_prompt: document.getElementById('sys-prompt').value.trim() }),
+    });
+    const reader = resp.body.getReader(); const decoder = new TextDecoder(); let buf = '';
+    while (true) {
+      const { done, value } = await reader.read(); if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n'); buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const payload = line.slice(6); if (payload === '[DONE]') break;
+        try {
+          const d = JSON.parse(payload);
+          if (d.error) fullText += `\n[ERROR: ${d.error}]`;
+          else if (d.token) fullText += d.token;
+          bubble.innerHTML = renderMarkdown(fullText) + '<span class="cursor"></span>';
+          scrollBottom();
+        } catch (_) {}
+      }
+    }
+  } catch (err) { fullText += `\n[Connection error: ${err.message}]`; }
+  bubble.innerHTML = renderMarkdown(fullText);
+  history.push({ role: 'assistant', content: fullText });
+  streaming = false; document.getElementById('send-btn').disabled = !selectedModel; scrollBottom();
+}
+document.getElementById('send-btn').addEventListener('click', sendMessage);
+document.getElementById('user-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+document.getElementById('user-input').addEventListener('input', function() {
+  this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+});
+document.getElementById('clear-btn').addEventListener('click', () => {
+  history = [];
+  document.getElementById('messages').innerHTML = `<div id="empty-state"><div class="big-logo">∅</div><div class="sub">SELECT A MODEL TO BEGIN</div></div>`;
+});
+document.getElementById('export-btn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify({ model: selectedModel, timestamp: new Date().toISOString(), messages: history }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `llm-lab-${Date.now()}.json`; a.click();
+});
+
+// ── Fine-tuning UI ────────────────────────────────────────────────────────────
+// Three modes share one backend job slot (lora | tiny | export), so the status
+// bar, log, chart and runs list are shared; only the config column and the
+// endpoint group change with the mode.
+let ftPolling = null;
+let ftDatasets = [];
+let ftMode = 'full';
+let ftSelectedTinyRun = null;
+let ftLastExitSeen = null;
+
+const $ = id => document.getElementById(id);
+
+const MODE_HINTS = {
+  full: 'QLoRA on a 7-9B base (4-bit). Exports to models/shared.',
+  lite: 'LoRA on a small bf16 base. Lab-only: exports to models/lite, never visible to PHT.',
+  tiny: 'Character-level GPT trained from scratch (~0.8M params).',
+};
+
+// Field values per mode. Switching modes saves the current mode's values and
+// restores the target's (or its defaults) so edits aren't lost.
+const LORA_FIELDS = ['ft-epochs','ft-batch','ft-grad-accum','ft-lr','ft-max-len',
+                     'ft-lora-r','ft-lora-alpha','ft-lora-dropout'];
+const MODE_DEFAULTS = {
+  full: { 'ft-epochs': 3, 'ft-batch': 4, 'ft-grad-accum': 4, 'ft-lr': '2e-4', 'ft-max-len': 2048,
+          'ft-lora-r': 16, 'ft-lora-alpha': 32, 'ft-lora-dropout': '0.05' },
+  lite: { 'ft-epochs': 3, 'ft-batch': 8, 'ft-grad-accum': 2, 'ft-lr': '2e-4', 'ft-max-len': 512,
+          'ft-lora-r': 8, 'ft-lora-alpha': 16, 'ft-lora-dropout': '0.05' },
+};
+const modeValues = {};
+
+function setFtMode(mode) {
+  if (MODE_DEFAULTS[ftMode]) {
+    modeValues[ftMode] = Object.fromEntries(LORA_FIELDS.map(id => [id, $(id).value]));
+  }
+  ftMode = mode;
+  const vals = modeValues[mode] || MODE_DEFAULTS[mode];
+  if (vals) for (const [id, v] of Object.entries(vals)) $(id).value = v;
+
+  document.querySelectorAll('.ft-mode-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.mode === mode));
+  document.querySelectorAll('#ft-config [data-modes]').forEach(el => {
+    el.style.display = el.dataset.modes.split(' ').includes(mode) ? '' : 'none';
+  });
+  $('ft-mode-hint').textContent = MODE_HINTS[mode];
+  $('ft-sample-wrap').style.display = mode === 'tiny' ? 'flex' : 'none';
+  updateFtEstimates();
+  loadRuns();
+  pollFtStatus();
+}
+document.querySelectorAll('.ft-mode-btn').forEach(b =>
+  b.addEventListener('click', () => setFtMode(b.dataset.mode)));
+
+// Effective batch / VRAM estimate
+function updateFtEstimates() {
+  const el = $('ft-est');
+  if (ftMode === 'tiny') {
+    el.innerHTML = 'VRAM est: <span>~0.4GB</span> &nbsp;|&nbsp; <span>CPU OK</span>';
+    return;
+  }
+  const batch = parseInt($('ft-batch').value) || 4;
+  const acc   = parseInt($('ft-grad-accum').value) || 4;
+  let vramEst;
+  if (ftMode === 'full') {
+    // Very rough: 4-bit 8B ~ 5GB base + ~0.5GB per 16r LoRA
+    const r = parseInt($('ft-lora-r').value) || 16;
+    vramEst = (5 + (r / 16) * 0.5).toFixed(1);
+  } else {
+    // bf16 base; measured peaks at batch 8 × 512 tokens: 135M ≈ 1.1GB, 0.5B ≈ 3.1GB.
+    // Activations scale roughly with batch × max_len.
+    const small = $('ft-base-lite').value.includes('135M');
+    const [baseGb, actGb] = small ? [0.4, 0.7] : [1.2, 1.9];
+    const len = parseInt($('ft-max-len').value) || 512;
+    vramEst = (baseGb + actGb * (batch * len) / (8 * 512)).toFixed(1);
+  }
+  el.innerHTML = `Eff. batch: <span>${batch * acc}</span> &nbsp;|&nbsp; VRAM est: <span>~${vramEst}GB</span>`;
+}
+['ft-batch','ft-grad-accum','ft-lora-r','ft-max-len','ft-base-lite'].forEach(id => {
+  $(id).addEventListener('input', updateFtEstimates);
+});
+
+async function loadDatasets() {
+  try {
+    const d = await fetch(`${API}/api/finetune/datasets`).then(r => r.json());
+    ftDatasets = d.datasets || [];
+    const sel = $('ft-dataset');
+    sel.innerHTML = ftDatasets.length
+      ? ftDatasets.map(ds => `<option value="${ds.name}">${ds.name} (${ds.rows} rows)</option>`).join('')
+      : '<option value="">— no datasets found —</option>';
+    updateDatasetInfo();
+  } catch (_) {}
+  try {
+    const d = await fetch(`${API}/api/tiny/corpora`).then(r => r.json());
+    const c = d.corpora || [];
+    $('ft-tiny-corpus').innerHTML = c.length
+      ? c.map(f => `<option value="${f.name}">${f.name} (${(f.bytes/1e6).toFixed(1)}MB)</option>`).join('')
+      : '<option value="">— no corpora found —</option>';
+  } catch (_) {}
+}
+function updateDatasetInfo() {
+  const ds = ftDatasets.find(d => d.name === $('ft-dataset').value);
+  $('ft-dataset-info').textContent = ds ? `${ds.rows} training examples` : '';
+}
+$('ft-dataset').addEventListener('change', updateDatasetInfo);
+
+function fmtLoss(v) { return v == null ? '–' : v.toFixed(3); }
+
+async function loadRuns() {
+  const el = $('ft-runs-list');
+  try {
+    if (ftMode === 'tiny') {
+      const d = await fetch(`${API}/api/tiny/runs`).then(r => r.json());
+      const runs = d.runs || [];
+      if (!runs.length) { el.innerHTML = '<div class="ft-empty">no tiny runs yet</div>'; return; }
+      if (!runs.some(r => r.name === ftSelectedTinyRun)) {
+        ftSelectedTinyRun = (runs.find(r => r.has_ckpt) || {}).name || null;
+      }
+      el.innerHTML = runs.map(r => `<div class="run-item selectable${r.name === ftSelectedTinyRun ? ' selected' : ''}" data-name="${escapeHtml(r.name)}">
+          <span class="run-name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span>
+          <span class="run-metric">step ${r.step ?? '–'} · val ${fmtLoss(r.val_loss)}</span>
+          ${r.has_ckpt ? '<span class="run-tag">CKPT</span>' : ''}
+        </div>`).join('');
+      el.querySelectorAll('.run-item').forEach(item => item.addEventListener('click', () => {
+        ftSelectedTinyRun = item.dataset.name; loadRuns();
+      }));
+      $('ft-sample-run').textContent = ftSelectedTinyRun ? `· ${ftSelectedTinyRun}` : '';
+      return;
+    }
+    const d = await fetch(`${API}/api/finetune/runs`).then(r => r.json());
+    const runs = (d.runs || []).filter(r => (r.profile === 'lite') === (ftMode === 'lite'));
+    if (!runs.length) { el.innerHTML = `<div class="ft-empty">no ${ftMode} runs yet</div>`; return; }
+    el.innerHTML = runs.map(r => {
+      const date = new Date(r.mtime * 1000).toLocaleDateString();
+      return `<div class="run-item">
+        <span class="run-name" title="${escapeHtml(r.base_model || r.name)}">${escapeHtml(r.name)}</span>
+        ${r.profile === 'lite' ? '<span class="run-tag lite">LITE</span>' : ''}
+        ${r.has_adapter ? '<span class="run-tag">ADAPTER</span>' : ''}
+        <span class="run-date">${date}</span>
+        ${r.has_adapter ? `<button class="run-export-btn" data-name="${escapeHtml(r.name)}">→ GGUF</button>` : ''}
+      </div>`;
+    }).join('');
+    el.querySelectorAll('.run-export-btn').forEach(btn => {
+      btn.addEventListener('click', () => startExport(btn.dataset.name));
+    });
+  } catch (_) {}
+}
+
+async function startExport(name) {
+  try {
+    const r = await fetch(`${API}/api/finetune/export`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ run_name: name }),
+    });
+    const d = await r.json();
+    if (d.error) { $('ft-status-text').textContent = `export: ${d.error}`; return; }
+    $('ft-log').textContent = `Exporting ${name} → ${d.out_dir} (${d.quant})...`;
+    if (!ftPolling) ftPolling = setInterval(pollFtStatus, 2000);
+    pollFtStatus();
+  } catch (e) { $('ft-status-text').textContent = `export failed: ${e.message}`; }
+}
+
+// Loss chart: train (solid amber) + val (dashed cyan). Most points carry only
+// one of the two, so each series is built from its own non-null points.
+function renderLossChart(points) {
+  const svg  = $('ft-chart-svg');
+  const none = $('ft-no-loss');
+  const train = points.filter(p => p.loss != null).map(p => ({ step: p.step, v: p.loss }));
+  const val   = points.filter(p => p.val_loss != null).map(p => ({ step: p.step, v: p.val_loss }));
+  const all = train.concat(val);
+  if (!all.length) {
+    svg.style.display = 'none'; none.style.display = 'flex';
+    $('ft-chart-legend').style.display = 'none';
+    return;
+  }
+  svg.style.display = 'block'; none.style.display = 'none';
+  $('ft-chart-legend').style.display = 'flex';
+
+  const W = 300, H = 140, PAD = 16;
+  const steps = all.map(p => p.step), vals = all.map(p => p.v);
+  const minS = Math.min(...steps), maxS = Math.max(...steps);
+  const minL = Math.min(...vals),  maxL = Math.max(...vals);
+  const rangeS = maxS - minS || 1;
+  const rangeL = maxL - minL || 0.001;
+
+  const toX = s => PAD + ((s - minS) / rangeS) * (W - PAD * 2);
+  const toY = l => (H - PAD) - ((l - minL) / rangeL) * (H - PAD * 2);
+  const path = series => series.map((p, i) =>
+    `${i === 0 ? 'M' : 'L'} ${toX(p.step).toFixed(1)} ${toY(p.v).toFixed(1)}`).join(' ');
+  // A single-point series has no line; draw a dot so it is still visible.
+  const dot = (series, color) => series.length === 1
+    ? `<circle cx="${toX(series[0].step)}" cy="${toY(series[0].v)}" r="2" fill="${color}"/>` : '';
+
+  const lastT = train.length ? train[train.length - 1] : null;
+  const lastV = val.length ? val[val.length - 1] : null;
+  // End labels: train above its point, val below; push apart if they'd overlap.
+  let yT = lastT ? toY(lastT.v) - 4 : 0, yV = lastV ? toY(lastV.v) + 10 : 0;
+  if (lastT && lastV && Math.abs(yV - yT) < 10) {
+    if (lastT.v >= lastV.v) yV = yT + 10; else { yT = toY(lastT.v) + 10; yV = yT - 10; }
+  }
+  svg.innerHTML = `
+    <line x1="${PAD}" y1="${PAD}" x2="${PAD}" y2="${H-PAD}" stroke="var(--border)" stroke-width="1"/>
+    <line x1="${PAD}" y1="${H-PAD}" x2="${W-PAD}" y2="${H-PAD}" stroke="var(--border)" stroke-width="1"/>
+    ${train.length > 1 ? `<path d="${path(train)}" fill="none" stroke="var(--amber)" stroke-width="1.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>` : ''}
+    ${val.length > 1 ? `<path d="${path(val)}" fill="none" stroke="var(--cyan)" stroke-width="1.5" stroke-dasharray="4 3" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>` : ''}
+    ${dot(train, 'var(--amber)')}${dot(val, 'var(--cyan)')}
+    <text x="${PAD+2}" y="${PAD+8}" fill="var(--dim)" font-size="8" font-family="Share Tech Mono">${maxL.toFixed(3)}</text>
+    <text x="${PAD+2}" y="${H-PAD-3}" fill="var(--dim)" font-size="8" font-family="Share Tech Mono">${minL.toFixed(3)}</text>
+    ${lastT ? `<text x="${W-PAD-2}" y="${yT}" fill="var(--amber)" font-size="8" font-family="Share Tech Mono" text-anchor="end">${lastT.v.toFixed(3)}</text>` : ''}
+    ${lastV ? `<text x="${W-PAD-2}" y="${yV}" fill="var(--cyan)" font-size="8" font-family="Share Tech Mono" text-anchor="end">${lastV.v.toFixed(3)}</text>` : ''}
+    <text x="${PAD}" y="${H-2}" fill="var(--dim)" font-size="8" font-family="Share Tech Mono">step ${minS}</text>
+    <text x="${W-PAD}" y="${H-2}" fill="var(--dim)" font-size="8" font-family="Share Tech Mono" text-anchor="end">${maxS}</text>
+  `;
+}
+
+// Status polling
+function classifyLogLine(line) {
+  if (/error|traceback|exception/i.test(line)) return 'log-error';
+  if (/'loss'|val \d/.test(line)) return 'log-loss';
+  if (/done|saved|saving|complete/i.test(line)) return 'log-done';
+  if (/loading|epoch|step|train/i.test(line)) return 'log-info';
+  return '';
+}
+
+const KIND_LABEL = { lora: 'training', tiny: 'tiny training', export: 'export' };
+
+async function pollFtStatus() {
+  try {
+    const statusPath = ftMode === 'tiny' ? '/api/tiny/status' : '/api/finetune/status';
+    const d = await fetch(`${API}${statusPath}`).then(r => r.json());
+    const kind = KIND_LABEL[d.kind] || 'job';
+
+    // Badge
+    const badge = $('ft-status-badge');
+    const statusText = $('ft-status-text');
+    if (d.running) {
+      badge.className = 'status-badge running';
+      badge.textContent = d.kind === 'export' ? 'EXPORTING' : 'TRAINING';
+      statusText.textContent = d.run_name ? `${kind}: ${d.run_name}` : '';
+    } else if (d.exit_code === 0 && d.run_name) {
+      badge.className = 'status-badge done'; badge.textContent = 'DONE';
+      statusText.textContent = `${d.run_name} — ${kind} complete`;
+    } else if (d.exit_code != null && d.exit_code !== 0) {
+      badge.className = 'status-badge error'; badge.textContent = 'ERROR';
+      statusText.textContent = `${kind} ${d.run_name || ''} — exit code ${d.exit_code}`;
+    } else {
+      badge.className = 'status-badge idle'; badge.textContent = 'IDLE';
+      statusText.textContent = 'No run active';
+    }
+
+    // Elapsed
+    if (d.running && d.start_time) {
+      const secs = Math.floor(Date.now()/1000 - d.start_time);
+      const h = Math.floor(secs/3600), m = Math.floor((secs%3600)/60), s = secs%60;
+      $('ft-elapsed').textContent = `elapsed ${h ? h+'h ' : ''}${m}m ${s}s`;
+    } else {
+      $('ft-elapsed').textContent = '';
+    }
+
+    // Log
+    const logEl = $('ft-log');
+    if (d.log && d.log.length) {
+      const wasBottom = logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < 40;
+      logEl.innerHTML = d.log.map(line => {
+        const cls = classifyLogLine(line);
+        return `<span class="${cls}">${escapeHtml(line)}</span>`;
+      }).join('\n');
+      if (wasBottom) logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // Loss chart
+    renderLossChart(d.loss_history || []);
+
+    // Buttons: one shared slot, so any running job blocks a new start.
+    $('ft-start-btn').disabled = d.running;
+    $('ft-stop-btn').classList.toggle('visible', d.running);
+    $('ft-sample-btn').disabled = d.running;
+
+    // After a job finishes, refresh runs (and models, for a fresh export) once.
+    const finishKey = d.running ? null : `${d.run_name}:${d.start_time}:${d.exit_code}`;
+    if (finishKey && d.exit_code != null && finishKey !== ftLastExitSeen) {
+      ftLastExitSeen = finishKey;
+      if (d.kind === 'tiny' && d.exit_code === 0) ftSelectedTinyRun = d.run_name;
+      loadRuns();
+      if (d.kind === 'export') loadModels();
+    }
+  } catch (_) {}
+}
+
+// Start polling when finetune tab is active
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.tab === 'finetune') {
+      if (!ftPolling) ftPolling = setInterval(pollFtStatus, 2000);
+      pollFtStatus();
+    } else {
+      if (ftPolling) { clearInterval(ftPolling); ftPolling = null; }
+    }
+  });
+});
+
+function loraBody() {
+  const lite = ftMode === 'lite';
+  const body = {
+    base_model:   lite ? $('ft-base-lite').value : $('ft-base-model').value.trim(),
+    dataset:      $('ft-dataset').value,
+    output_name:  $('ft-output-name').value.trim(),
+    epochs:       parseInt($('ft-epochs').value),
+    batch:        parseInt($('ft-batch').value),
+    grad_accum:   parseInt($('ft-grad-accum').value),
+    lr:           parseFloat($('ft-lr').value),
+    max_len:      parseInt($('ft-max-len').value),
+    lora_r:       parseInt($('ft-lora-r').value),
+    lora_alpha:   parseInt($('ft-lora-alpha').value),
+    lora_dropout: parseFloat($('ft-lora-dropout').value),
+  };
+  if (lite) Object.assign(body, {
+    profile:     'lite',
+    max_steps:   parseInt($('ft-max-steps').value),
+    val_split:   parseFloat($('ft-val-split').value),
+    eval_steps:  parseInt($('ft-eval-steps').value),
+    max_samples: parseInt($('ft-max-samples').value),
+  });
+  return body;
+}
+
+function tinyBody() {
+  return {
+    corpus:     $('ft-tiny-corpus').value,
+    run_name:   $('ft-tiny-run-name').value.trim(),
+    steps:      parseInt($('ft-tiny-steps').value),
+    batch:      parseInt($('ft-tiny-batch').value),
+    lr:         parseFloat($('ft-tiny-lr').value),
+    block_size: parseInt($('ft-tiny-block').value),
+    n_layer:    parseInt($('ft-tiny-layers').value),
+    n_head:     parseInt($('ft-tiny-heads').value),
+    n_embd:     parseInt($('ft-tiny-embd').value),
+    eval_every: parseInt($('ft-tiny-eval').value),
+    device:     $('ft-tiny-device').value,
+  };
+}
+
+// Start / Stop handlers
+$('ft-start-btn').addEventListener('click', async () => {
+  let path, body;
+  if (ftMode === 'tiny') {
+    body = tinyBody(); path = '/api/tiny/start';
+    if (!body.corpus)   { alert('Select a corpus.'); return; }
+    if (!body.run_name) { alert('Enter a run name.'); return; }
+  } else {
+    body = loraBody(); path = '/api/finetune/start';
+    if (!body.base_model)  { alert('Enter a base model.'); return; }
+    if (!body.dataset)     { alert('Select a dataset.'); return; }
+    if (!body.output_name) { alert('Enter an output name for the adapter.'); return; }
+  }
+
+  // Warn about VRAM — a resident local model will be evicted (not for CPU tiny runs)
+  if (!(ftMode === 'tiny' && body.device === 'cpu')) {
+    const proceed = confirm(
+      'Starting training will unload any resident GGUF model from VRAM.\n\nProceed?'
+    );
+    if (!proceed) return;
+  }
+
+  try {
+    const r = await fetch(`${API}${path}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (d.error) { alert('Error: ' + d.error); return; }
+    $('ft-log').textContent = 'Initializing...';
+    if (!ftPolling) ftPolling = setInterval(pollFtStatus, 2000);
+    pollFtStatus();
+  } catch (e) { alert('Failed to start: ' + e.message); }
+});
+
+$('ft-stop-btn').addEventListener('click', async () => {
+  if (!confirm('Stop the current job?')) return;
+  const st = await fetch(`${API}/api/finetune/status`).then(r => r.json()).catch(() => ({}));
+  const path = st.kind === 'tiny' ? '/api/tiny/stop' : '/api/finetune/stop';
+  await fetch(`${API}${path}`, { method: 'POST' });
+  pollFtStatus();
+});
+
+// Tiny sample box
+$('ft-sample-btn').addEventListener('click', async () => {
+  const out = $('ft-sample-out');
+  if (!ftSelectedTinyRun) { out.textContent = 'no tiny run with a checkpoint selected'; return; }
+  out.textContent = 'sampling...';
+  try {
+    const r = await fetch(`${API}/api/tiny/sample`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        run_name: ftSelectedTinyRun,
+        temperature: parseFloat($('ft-sample-temp').value) || 0.8,
+        n_chars: parseInt($('ft-sample-n').value) || 300,
+      }),
+    });
+    const d = await r.json();
+    out.textContent = d.error ? `[${d.error}]` : d.text;
+  } catch (e) { out.textContent = `[sample failed: ${e.message}]`; }
+});
+
+setFtMode('full');
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadModels();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# Inference API (tested with Python 3.10)
+fastapi==0.136.1
+uvicorn==0.46.0
+httpx==0.28.1
+pydantic==2.13.4
+# Build with CUDA for GPU offload:
+#   CMAKE_ARGS="-DGGML_CUDA=on" pip install llama-cpp-python==0.3.23
+llama-cpp-python==0.3.23
+
+# Fine-tuning (finetune/ and tiny_lab/)
+torch==2.6.0
+transformers==4.47.1
+peft==0.14.0
+trl==0.13.0
+datasets==4.3.0
+accelerate==1.13.0
+bitsandbytes==0.49.2
