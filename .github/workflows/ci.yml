@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      # The unit tests cover the registry and coach helpers, which need only
+      # httpx; the GPU stack (torch, llama-cpp-python) is not installed in CI.
+      - run: pip install "httpx==0.28.1"
+      - name: Byte-compile every module
+        run: python -m compileall -q backend finetune tiny_lab tests
+      - name: Notebook is valid JSON with no outputs
+        run: python -c "import json; nb=json.load(open('finetune/quickstart.ipynb')); assert all(not c.get('outputs') for c in nb['cells'])"
+      - run: python -m unittest discover -s tests -t . -v
