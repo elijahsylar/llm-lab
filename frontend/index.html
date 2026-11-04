@@ -414,8 +414,8 @@
 <body>
 
 <!-- TOP BAR -->
-<div id="topbar">
-  <div class="logo">LLM///LAB</div>
+<div id="topbar" role="banner">
+  <h1 class="logo">LLM///LAB</h1>
   <div class="gpu-stat"><span class="label">GPU</span><span class="value" id="gpu-name">—</span></div>
   <div class="gpu-stat">
     <span class="label">VRAM</span>
@@ -436,7 +436,7 @@
 <div id="main">
 
   <!-- SIDEBAR -->
-  <div id="sidebar">
+  <div id="sidebar" role="complementary" aria-label="Models and parameters">
     <div class="sidebar-section">
       <div class="sidebar-section-title">Models</div>
       <input id="model-search" type="text" placeholder="filter models...">
@@ -445,8 +445,8 @@
     <div class="sidebar-section">
       <div class="sidebar-section-title">Parameters</div>
       <div class="ctrl-row">
-        <span class="ctrl-label">TEMP</span>
-        <input type="range" id="temp-slider" min="0" max="2" step="0.05" value="0.7">
+        <span class="ctrl-label" id="temp-slider-label">TEMP</span>
+        <input type="range" id="temp-slider" aria-labelledby="temp-slider-label" min="0" max="2" step="0.05" value="0.7">
         <span class="ctrl-value" id="temp-val">0.70</span>
       </div>
     </div>
@@ -461,7 +461,7 @@
   </div>
 
   <!-- CONTENT AREA -->
-  <div id="content-wrap">
+  <div id="content-wrap" role="main">
 
     <!-- TAB BAR -->
     <div id="tab-bar">
@@ -507,14 +507,14 @@
         <div class="ft-section" data-modes="full lite">
           <div class="ft-section-title">Base Model</div>
           <div class="ft-field" data-modes="full">
-            <span class="ft-label">HuggingFace ID or local path</span>
-            <input class="ft-input" id="ft-base-model" type="text"
+            <span class="ft-label" id="ft-base-model-label">HuggingFace ID or local path</span>
+            <input class="ft-input" id="ft-base-model" aria-labelledby="ft-base-model-label" type="text"
               placeholder="e.g. meta-llama/Meta-Llama-3-8B-Instruct"
               value="meta-llama/Meta-Llama-3-8B-Instruct">
           </div>
           <div class="ft-field" data-modes="lite">
-            <span class="ft-label">Small base model</span>
-            <select class="ft-input" id="ft-base-lite">
+            <span class="ft-label" id="ft-base-lite-label">Small base model</span>
+            <select class="ft-input" id="ft-base-lite" aria-labelledby="ft-base-lite-label">
               <option value="HuggingFaceTB/SmolLM2-135M-Instruct">SmolLM2-135M-Instruct</option>
               <option value="Qwen/Qwen2.5-0.5B-Instruct">Qwen2.5-0.5B-Instruct</option>
             </select>
@@ -524,8 +524,8 @@
         <div class="ft-section" data-modes="full lite">
           <div class="ft-section-title">Dataset</div>
           <div class="ft-field">
-            <span class="ft-label">JSONL file in finetune/datasets/</span>
-            <select class="ft-input" id="ft-dataset">
+            <span class="ft-label" id="ft-dataset-label">JSONL file in finetune/datasets/</span>
+            <select class="ft-input" id="ft-dataset" aria-labelledby="ft-dataset-label">
               <option value="">— loading... —</option>
             </select>
           </div>
@@ -533,33 +533,33 @@
             <span class="ft-label" id="ft-dataset-info" style="color:var(--dim)"></span>
           </div>
           <div class="ft-field">
-            <span class="ft-label">Output adapter name</span>
-            <input class="ft-input" id="ft-output-name" type="text" placeholder="my-adapter">
+            <span class="ft-label" id="ft-output-name-label">Output adapter name</span>
+            <input class="ft-input" id="ft-output-name" aria-labelledby="ft-output-name-label" type="text" placeholder="my-adapter">
           </div>
         </div>
 
         <div class="ft-section" data-modes="full lite">
           <div class="ft-section-title">Training</div>
           <div class="ft-row">
-            <span class="ft-label">EPOCHS</span>
-            <input class="ft-input" id="ft-epochs" type="number" value="3" min="1" max="20">
+            <span class="ft-label" id="ft-epochs-label">EPOCHS</span>
+            <input class="ft-input" id="ft-epochs" aria-labelledby="ft-epochs-label" type="number" value="3" min="1" max="20">
           </div>
           <div class="ft-row">
-            <span class="ft-label">BATCH</span>
-            <input class="ft-input" id="ft-batch" type="number" value="4" min="1" max="32">
+            <span class="ft-label" id="ft-batch-label">BATCH</span>
+            <input class="ft-input" id="ft-batch" aria-labelledby="ft-batch-label" type="number" value="4" min="1" max="32">
             <span class="ft-unit">per device</span>
           </div>
           <div class="ft-row">
-            <span class="ft-label">GRAD ACC</span>
-            <input class="ft-input" id="ft-grad-accum" type="number" value="4" min="1" max="32">
+            <span class="ft-label" id="ft-grad-accum-label">GRAD ACC</span>
+            <input class="ft-input" id="ft-grad-accum" aria-labelledby="ft-grad-accum-label" type="number" value="4" min="1" max="32">
           </div>
           <div class="ft-row">
-            <span class="ft-label">LR</span>
-            <input class="ft-input" id="ft-lr" type="text" value="2e-4">
+            <span class="ft-label" id="ft-lr-label">LR</span>
+            <input class="ft-input" id="ft-lr" aria-labelledby="ft-lr-label" type="text" value="2e-4">
           </div>
           <div class="ft-row">
-            <span class="ft-label">MAX LEN</span>
-            <input class="ft-input" id="ft-max-len" type="number" value="2048" min="128" max="8192">
+            <span class="ft-label" id="ft-max-len-label">MAX LEN</span>
+            <input class="ft-input" id="ft-max-len" aria-labelledby="ft-max-len-label" type="number" value="2048" min="128" max="8192">
             <span class="ft-unit">tokens</span>
           </div>
         </div>
@@ -567,89 +567,89 @@
         <div class="ft-section" data-modes="lite">
           <div class="ft-section-title">Lite Schedule</div>
           <div class="ft-row">
-            <span class="ft-label">MAX STEPS</span>
-            <input class="ft-input" id="ft-max-steps" type="number" value="200" min="1">
+            <span class="ft-label" id="ft-max-steps-label">MAX STEPS</span>
+            <input class="ft-input" id="ft-max-steps" aria-labelledby="ft-max-steps-label" type="number" value="200" min="1">
             <span class="ft-unit">overrides epochs</span>
           </div>
           <div class="ft-row">
-            <span class="ft-label">VAL SPLIT</span>
-            <input class="ft-input" id="ft-val-split" type="text" value="0.1">
+            <span class="ft-label" id="ft-val-split-label">VAL SPLIT</span>
+            <input class="ft-input" id="ft-val-split" aria-labelledby="ft-val-split-label" type="text" value="0.1">
           </div>
           <div class="ft-row">
-            <span class="ft-label">EVAL EVERY</span>
-            <input class="ft-input" id="ft-eval-steps" type="number" value="20" min="1">
+            <span class="ft-label" id="ft-eval-steps-label">EVAL EVERY</span>
+            <input class="ft-input" id="ft-eval-steps" aria-labelledby="ft-eval-steps-label" type="number" value="20" min="1">
             <span class="ft-unit">steps</span>
           </div>
           <div class="ft-row">
-            <span class="ft-label">MAX SAMPLES</span>
-            <input class="ft-input" id="ft-max-samples" type="number" value="500" min="1">
+            <span class="ft-label" id="ft-max-samples-label">MAX SAMPLES</span>
+            <input class="ft-input" id="ft-max-samples" aria-labelledby="ft-max-samples-label" type="number" value="500" min="1">
           </div>
         </div>
 
         <div class="ft-section" data-modes="full lite">
           <div class="ft-section-title">LoRA Config</div>
           <div class="ft-row">
-            <span class="ft-label">RANK (r)</span>
-            <input class="ft-input" id="ft-lora-r" type="number" value="16" min="4" max="128">
+            <span class="ft-label" id="ft-lora-r-label">RANK (r)</span>
+            <input class="ft-input" id="ft-lora-r" aria-labelledby="ft-lora-r-label" type="number" value="16" min="4" max="128">
           </div>
           <div class="ft-row">
-            <span class="ft-label">ALPHA</span>
-            <input class="ft-input" id="ft-lora-alpha" type="number" value="32" min="4" max="256">
+            <span class="ft-label" id="ft-lora-alpha-label">ALPHA</span>
+            <input class="ft-input" id="ft-lora-alpha" aria-labelledby="ft-lora-alpha-label" type="number" value="32" min="4" max="256">
           </div>
           <div class="ft-row">
-            <span class="ft-label">DROPOUT</span>
-            <input class="ft-input" id="ft-lora-dropout" type="text" value="0.05">
+            <span class="ft-label" id="ft-lora-dropout-label">DROPOUT</span>
+            <input class="ft-input" id="ft-lora-dropout" aria-labelledby="ft-lora-dropout-label" type="text" value="0.05">
           </div>
         </div>
 
         <div class="ft-section" data-modes="tiny">
           <div class="ft-section-title">Tiny GPT</div>
           <div class="ft-field">
-            <span class="ft-label">Corpus in tiny_lab/data/</span>
-            <select class="ft-input" id="ft-tiny-corpus">
+            <span class="ft-label" id="ft-tiny-corpus-label">Corpus in tiny_lab/data/</span>
+            <select class="ft-input" id="ft-tiny-corpus" aria-labelledby="ft-tiny-corpus-label">
               <option value="">— loading... —</option>
             </select>
           </div>
           <div class="ft-field">
-            <span class="ft-label">Run name</span>
-            <input class="ft-input" id="ft-tiny-run-name" type="text" placeholder="shakespeare-1">
+            <span class="ft-label" id="ft-tiny-run-name-label">Run name</span>
+            <input class="ft-input" id="ft-tiny-run-name" aria-labelledby="ft-tiny-run-name-label" type="text" placeholder="shakespeare-1">
           </div>
           <div class="ft-row">
-            <span class="ft-label">STEPS</span>
-            <input class="ft-input" id="ft-tiny-steps" type="number" value="2000" min="1">
+            <span class="ft-label" id="ft-tiny-steps-label">STEPS</span>
+            <input class="ft-input" id="ft-tiny-steps" aria-labelledby="ft-tiny-steps-label" type="number" value="2000" min="1">
           </div>
           <div class="ft-row">
-            <span class="ft-label">BATCH</span>
-            <input class="ft-input" id="ft-tiny-batch" type="number" value="32" min="1">
+            <span class="ft-label" id="ft-tiny-batch-label">BATCH</span>
+            <input class="ft-input" id="ft-tiny-batch" aria-labelledby="ft-tiny-batch-label" type="number" value="32" min="1">
           </div>
           <div class="ft-row">
-            <span class="ft-label">LR</span>
-            <input class="ft-input" id="ft-tiny-lr" type="text" value="3e-4">
+            <span class="ft-label" id="ft-tiny-lr-label">LR</span>
+            <input class="ft-input" id="ft-tiny-lr" aria-labelledby="ft-tiny-lr-label" type="text" value="3e-4">
           </div>
           <div class="ft-row">
-            <span class="ft-label">BLOCK</span>
-            <input class="ft-input" id="ft-tiny-block" type="number" value="128" min="8">
+            <span class="ft-label" id="ft-tiny-block-label">BLOCK</span>
+            <input class="ft-input" id="ft-tiny-block" aria-labelledby="ft-tiny-block-label" type="number" value="128" min="8">
             <span class="ft-unit">chars ctx</span>
           </div>
           <div class="ft-row">
-            <span class="ft-label">LAYERS</span>
-            <input class="ft-input" id="ft-tiny-layers" type="number" value="4" min="1">
+            <span class="ft-label" id="ft-tiny-layers-label">LAYERS</span>
+            <input class="ft-input" id="ft-tiny-layers" aria-labelledby="ft-tiny-layers-label" type="number" value="4" min="1">
           </div>
           <div class="ft-row">
-            <span class="ft-label">HEADS</span>
-            <input class="ft-input" id="ft-tiny-heads" type="number" value="4" min="1">
+            <span class="ft-label" id="ft-tiny-heads-label">HEADS</span>
+            <input class="ft-input" id="ft-tiny-heads" aria-labelledby="ft-tiny-heads-label" type="number" value="4" min="1">
           </div>
           <div class="ft-row">
-            <span class="ft-label">EMBD</span>
-            <input class="ft-input" id="ft-tiny-embd" type="number" value="128" min="8">
+            <span class="ft-label" id="ft-tiny-embd-label">EMBD</span>
+            <input class="ft-input" id="ft-tiny-embd" aria-labelledby="ft-tiny-embd-label" type="number" value="128" min="8">
           </div>
           <div class="ft-row">
-            <span class="ft-label">EVAL EVERY</span>
-            <input class="ft-input" id="ft-tiny-eval" type="number" value="100" min="1">
+            <span class="ft-label" id="ft-tiny-eval-label">EVAL EVERY</span>
+            <input class="ft-input" id="ft-tiny-eval" aria-labelledby="ft-tiny-eval-label" type="number" value="100" min="1">
           </div>
           <div class="ft-row">
-            <span class="ft-label">DEVICE</span>
-            <select class="ft-input" id="ft-tiny-device">
+            <span class="ft-label" id="ft-tiny-device-label">DEVICE</span>
+            <select class="ft-input" id="ft-tiny-device" aria-labelledby="ft-tiny-device-label">
               <option value="auto">auto</option>
               <option value="cuda">cuda</option>
               <option value="cpu">cpu</option>
@@ -711,7 +711,7 @@
     </div><!-- /finetune-panel -->
 
     <!-- GUIDE PANEL -->
-    <div id="guide-panel" style="display:none;flex:1;overflow-y:auto;padding:32px 40px;flex-direction:column;gap:32px;">
+    <div id="guide-panel" role="region" tabindex="0" aria-label="Guide" style="display:none;flex:1;overflow-y:auto;padding:32px 40px;flex-direction:column;gap:32px;">
 
       <div style="font-family:'Orbitron',sans-serif;font-size:22px;font-weight:900;color:var(--cyan);letter-spacing:4px;text-shadow:0 0 20px var(--cyan)">
         FINE-TUNING // FIELD GUIDE
