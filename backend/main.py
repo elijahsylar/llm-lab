@@ -242,26 +242,33 @@ def _read_job_output(proc: subprocess.Popen):
     by the trainers' metric callbacks) go to loss_history only, not the log.
     The prefix is searched for anywhere in the line because stderr progress
     bars (tqdm, no trailing newline) can land in front of it."""
-    for raw_line in proc.stdout:
-        line = _ANSI_RE.sub("", raw_line).rstrip()
+    # The slot is released in `finally`: if this reader ever dies, the job
+    # must not stay "running" until the server restarts.
+    try:
+        for raw_line in proc.stdout:
+            line = _ANSI_RE.sub("", raw_line).rstrip()
+            with _job_lock:
+                i = line.find(METRIC_PREFIX)
+                if i != -1:
+                    try:
+                        _job["loss_history"].append(json.loads(line[i + len(METRIC_PREFIX):]))
+                        line = line[:i].rstrip()
+                    except json.JSONDecodeError:
+                        pass
+                if not line:
+                    continue
+                _job["log"].append(line)
+                if len(_job["log"]) > 600:
+                    _job["log"] = _job["log"][-500:]
+    except Exception as e:
         with _job_lock:
-            i = line.find(METRIC_PREFIX)
-            if i != -1:
-                try:
-                    _job["loss_history"].append(json.loads(line[i + len(METRIC_PREFIX):]))
-                    line = line[:i].rstrip()
-                except json.JSONDecodeError:
-                    pass
-            if not line:
-                continue
-            _job["log"].append(line)
-            if len(_job["log"]) > 600:
-                _job["log"] = _job["log"][-500:]
-    proc.wait()
-    with _job_lock:
-        _job["exit_code"] = proc.returncode
-        _job["running"] = False
-        _job["proc"] = None
+            _job["log"].append(f"[log reader stopped: {e}]")
+    finally:
+        proc.wait()
+        with _job_lock:
+            _job["exit_code"] = proc.returncode
+            _job["running"] = False
+            _job["proc"] = None
 
 
 def _start_job(kind: str, run_name: str, cmd: list[str],
@@ -297,6 +304,7 @@ def _start_job(kind: str, run_name: str, cmd: list[str],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
+            errors="replace",  # a stray non-UTF-8 byte must not kill the reader
             bufsize=1,
             env={**os.environ, "PYTHONUNBUFFERED": "1"},
         )
@@ -513,23 +521,30 @@ async def _stream_ollama(ollama_name, messages, temperature, system_prompt) -> A
         ]
     payload = {"model": ollama_name, "messages": payload_messages, "stream": True,
                "options": {"temperature": temperature}}
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        async with client.stream("POST", f"{OLLAMA_BASE}/api/chat", json=payload) as resp:
-            if resp.status_code != 200:
-                yield f"data: {json.dumps({'error': f'Ollama {resp.status_code}'})}\n\n"
-                return
-            async for line in resp.aiter_lines():
-                if not line.strip():
-                    continue
-                try:
-                    data = json.loads(line)
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            async with client.stream("POST", f"{OLLAMA_BASE}/api/chat", json=payload) as resp:
+                if resp.status_code != 200:
+                    yield f"data: {json.dumps({'error': f'Ollama {resp.status_code}'})}\n\n"
+                    return
+                async for line in resp.aiter_lines():
+                    if not line.strip():
+                        continue
+                    try:
+                        data = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if data.get("error"):  # Ollama reports mid-stream failures this way
+                        yield f"data: {json.dumps({'error': str(data['error'])})}\n\n"
+                        return
                     token = data.get("message", {}).get("content", "")
                     if token:
                         yield f"data: {json.dumps({'token': token})}\n\n"
                     if data.get("done"):
                         yield "data: [DONE]\n\n"
-                except json.JSONDecodeError:
-                    pass
+    except httpx.HTTPError as e:
+        # Connection refused or dropped: tell the page instead of ending silently.
+        yield f"data: {json.dumps({'error': f'Ollama unreachable: {type(e).__name__}'})}\n\n"
 
 
 async def _stream_llama(messages, temperature, system_prompt) -> AsyncIterator[str]:
