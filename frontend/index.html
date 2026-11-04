@@ -1043,21 +1043,21 @@ function renderModels(filter) {
     html += '<div class="model-group-label">// OLLAMA</div>';
     for (const m of ollama) {
       const active = m.id === selectedModel ? ' active' : '';
-      html += `<div class="model-item${active}" data-id="${m.id}" title="${m.id}">${m.id.replace(/:latest$/,'')}</div>`;
+      html += `<div class="model-item${active}" data-id="${escapeHtml(m.id)}" title="${escapeHtml(m.id)}">${escapeHtml(m.id.replace(/:latest$/,''))}</div>`;
     }
   }
   if (gguf.length) {
     html += '<div class="model-group-label">// LOCAL GGUF</div>';
     for (const m of gguf) {
       const active = m.id === selectedModel ? ' active' : '';
-      html += `<div class="model-item${active}" data-id="${m.id}" title="${m.id}">${m.id}</div>`;
+      html += `<div class="model-item${active}" data-id="${escapeHtml(m.id)}" title="${escapeHtml(m.id)}">${escapeHtml(m.id)}</div>`;
     }
   }
   if (lab.length) {
     html += '<div class="model-group-label">// LAB (LITE)</div>';
     for (const m of lab) {
       const active = m.id === selectedModel ? ' active' : '';
-      html += `<div class="model-item${active}" data-id="${m.id}" title="${m.description}">${m.id}</div>`;
+      html += `<div class="model-item${active}" data-id="${escapeHtml(m.id)}" title="${escapeHtml(m.description)}">${escapeHtml(m.id)}</div>`;
     }
   }
   const el = document.getElementById('model-list');
@@ -1086,13 +1086,21 @@ tempSlider.addEventListener('input', () => {
 });
 
 // ── Chat ──────────────────────────────────────────────────────────────────────
-function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escapeHtml(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+// Model output is untrusted: escape everything, then add the little markup
+// we support. Fenced code blocks are set aside first so their newlines stay.
 function renderMarkdown(text) {
-  text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, l, c) => `<pre><code>${escapeHtml(c.trim())}</code></pre>`);
+  const blocks = [];
+  text = text.replace(/\u0000/g, '');   // the placeholder marker below
+  text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, l, c) => {
+    blocks.push(`<pre><code>${escapeHtml(c.trim())}</code></pre>`);
+    return `\u0000${blocks.length - 1}\u0000`;
+  });
+  text = escapeHtml(text);
   text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
   text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   text = text.replace(/\n/g, '<br>');
-  return text;
+  return text.replace(/\u0000(\d+)\u0000/g, (_, i) => blocks[Number(i)] ?? '');
 }
 function clearEmpty() { const e = document.getElementById('empty-state'); if (e) e.remove(); }
 function scrollBottom() { const m = document.getElementById('messages'); m.scrollTop = m.scrollHeight; }
@@ -1253,7 +1261,7 @@ async function loadDatasets() {
     ftDatasets = d.datasets || [];
     const sel = $('ft-dataset');
     sel.innerHTML = ftDatasets.length
-      ? ftDatasets.map(ds => `<option value="${ds.name}">${ds.name} (${ds.rows} rows)</option>`).join('')
+      ? ftDatasets.map(ds => `<option value="${escapeHtml(ds.name)}">${escapeHtml(ds.name)} (${ds.rows} rows)</option>`).join('')
       : '<option value="">— no datasets found —</option>';
     updateDatasetInfo();
   } catch (_) {}
@@ -1261,7 +1269,7 @@ async function loadDatasets() {
     const d = await fetch(`${API}/api/tiny/corpora`).then(r => r.json());
     const c = d.corpora || [];
     $('ft-tiny-corpus').innerHTML = c.length
-      ? c.map(f => `<option value="${f.name}">${f.name} (${(f.bytes/1e6).toFixed(1)}MB)</option>`).join('')
+      ? c.map(f => `<option value="${escapeHtml(f.name)}">${escapeHtml(f.name)} (${(f.bytes/1e6).toFixed(1)}MB)</option>`).join('')
       : '<option value="">— no corpora found —</option>';
   } catch (_) {}
 }
