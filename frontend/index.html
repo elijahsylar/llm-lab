@@ -17,7 +17,7 @@
     --bg2:    #0a1520;
     --bg3:    #0f1f30;
     --border: #1a3a4a;
-    --dim:    #4a7a8a;
+    --dim:    #578fa1; /* AA: 4.65:1 on --bg3, 5.13:1 on --bg2, 5.54:1 on --bg */
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -192,8 +192,8 @@
   #send-btn:hover:not(:disabled) { background: rgba(0,212,255,.2); box-shadow: 0 0 12px rgba(0,212,255,.3); }
   #send-btn:disabled { opacity: .4; cursor: not-allowed; }
 
-  #empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; flex: 1; opacity: .3; }
-  #empty-state .big-logo { font-family: 'Orbitron', sans-serif; font-size: 48px; font-weight: 900; color: var(--cyan); letter-spacing: 8px; }
+  #empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; flex: 1; }
+  #empty-state .big-logo { opacity: .3; font-family: 'Orbitron', sans-serif; font-size: 48px; font-weight: 900; color: var(--cyan); letter-spacing: 8px; }
   #empty-state .sub { font-family: 'Share Tech Mono', monospace; font-size: 13px; color: var(--dim); letter-spacing: 3px; }
 
   /* ── FINETUNE PANEL ── */
