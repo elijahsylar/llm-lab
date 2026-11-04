@@ -263,6 +263,12 @@ def _read_job_output(proc: subprocess.Popen):
     except Exception as e:
         with _job_lock:
             _job["log"].append(f"[log reader stopped: {e}]")
+        # Keep draining, or a chatty job blocks on a full pipe and never exits.
+        try:
+            for _ in proc.stdout:
+                pass
+        except Exception:
+            pass
     finally:
         proc.wait()
         with _job_lock:
