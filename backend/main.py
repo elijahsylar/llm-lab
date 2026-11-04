@@ -662,8 +662,14 @@ async def list_datasets():
 
 @app.post("/api/finetune/start")
 async def start_training(req: FinetuneRequest):
+    # Both names become paths: plain file/directory names only, as in
+    # /api/tiny/start and /api/tiny/sample.
+    if not _SAFE_NAME_RE.fullmatch(req.dataset) or req.dataset.startswith("."):
+        return JSONResponse({"error": "dataset: letters, digits, _ . - only"}, status_code=400)
+    if not _SAFE_NAME_RE.fullmatch(req.output_name) or req.output_name.startswith("."):
+        return JSONResponse({"error": "output_name: letters, digits, _ . - only"}, status_code=400)
     dataset_path = os.path.join(DATASETS_DIR, req.dataset)
-    if not os.path.exists(dataset_path):
+    if not os.path.isfile(dataset_path):
         return JSONResponse({"error": f"Dataset not found: {req.dataset}"}, status_code=404)
     if _job_running():
         return JSONResponse({"error": JOB_BUSY_ERROR}, status_code=409)
@@ -712,7 +718,7 @@ async def export_run(req: ExportRequest):
     full runs go to SHARED_MODELS_DIR as Q4_K_M."""
     safe = re.sub(r"[^A-Za-z0-9_.-]", "_", req.run_name)
     adapter = os.path.join(EXPORTS_DIR, safe)
-    if safe != req.run_name or not os.path.exists(os.path.join(adapter, "adapter_config.json")):
+    if safe != req.run_name or safe.startswith(".") or not os.path.exists(os.path.join(adapter, "adapter_config.json")):
         return JSONResponse({"error": f"No adapter for run: {req.run_name}"}, status_code=404)
 
     tcfg = _run_train_config(safe)
