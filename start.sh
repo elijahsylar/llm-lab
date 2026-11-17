@@ -42,7 +42,7 @@ echo ""
 
 # ── Start backend ──────────────────────────────────────────────────────────────
 echo "Starting backend on :8000 ..."
-nohup uvicorn backend.main:app --port 8000 > logs/backend.log 2>&1 &
+nohup uvicorn backend.main:app --host 127.0.0.1 --port 8000 > logs/backend.log 2>&1 &
 BACKEND_PID=$!
 echo "  PID: $BACKEND_PID"
 
@@ -56,10 +56,11 @@ for i in {1..15}; do
 done
 
 # ── Open frontend ──────────────────────────────────────────────────────────────
-FRONTEND="$SCRIPT_DIR/frontend/index.html"
+# The backend serves frontend/index.html at "/", so the page is same-origin.
+FRONTEND="http://localhost:8000/"
 echo "Opening frontend: $FRONTEND"
 xdg-open "$FRONTEND" 2>/dev/null || open "$FRONTEND" 2>/dev/null || \
-    echo "  (open manually: file://$FRONTEND)"
+    echo "  (open manually: $FRONTEND)"
 
 echo ""
 echo "  Backend log: $SCRIPT_DIR/logs/backend.log"

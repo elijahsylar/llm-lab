@@ -978,7 +978,9 @@
 </div><!-- /main -->
 
 <script>
-const API = 'http://localhost:8000';
+// Served by the backend at "/": same-origin, relative URLs. Opened as a file://
+// page (needs null in LLM_LAB_ALLOWED_ORIGINS): call the backend by address.
+const API = location.protocol === 'file:' ? 'http://localhost:8000' : '';
 
 // ── GPU / health polling ──────────────────────────────────────────────────────
 async function pollGpu() {

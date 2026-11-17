@@ -13,7 +13,7 @@ from typing import AsyncIterator
 import httpx
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from llama_cpp import Llama
 from pydantic import BaseModel
 
@@ -31,16 +31,18 @@ app = FastAPI(title="LLM Lab API")
 # and the PNA preflight middleware below so they never drift.
 # Extra origins (for example a deployed habit-tracker frontend) come from
 # LLM_LAB_ALLOWED_ORIGINS, comma-separated.
+# "null" (the origin of file:// pages, and of every other local HTML file and
+# sandboxed iframe) is not allowed by default: the lab's own page is served by
+# this backend at "/". Adding null to LLM_LAB_ALLOWED_ORIGINS opts back in.
 ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:8000",
-    "null",
 ] + [o.strip() for o in os.environ.get("LLM_LAB_ALLOWED_ORIGINS", "").split(",") if o.strip()]
 
 # CORS — the PHT frontend (served from a remote host, or Vite dev) calls this
-# backend directly from the browser on the local machine. "null" keeps the
-# lab's own file:// frontend working; localhost:8000 covers same-origin.
+# backend directly from the browser on the local machine. The lab's own page
+# is same-origin (served at "/" below) and needs no CORS.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -86,6 +88,7 @@ TRAIN_SCRIPT    = f"{LAB_ROOT}/finetune/train.py"
 EXPORT_SCRIPT   = f"{LAB_ROOT}/finetune/export_gguf.py"
 TINY_DATA_DIR   = f"{LAB_ROOT}/tiny_lab/data"
 TINY_RUNS_DIR   = f"{LAB_ROOT}/tiny_lab/runs"
+FRONTEND_INDEX  = f"{LAB_ROOT}/frontend/index.html"
 
 # ── Model registry + single-slot VRAM state ───────────────────────────────────
 # Registry is rebuilt on demand (cheap: one Ollama call + dir listdir) so newly
@@ -443,6 +446,12 @@ def _visible_loaded_key(include_lab: int) -> str | None:
         if entry and entry.get("scope") == "lab":
             return None
     return _loaded_key
+
+
+@app.get("/", include_in_schema=False)
+async def index():
+    """The lab's own page, served same-origin so it needs no CORS entry."""
+    return FileResponse(FRONTEND_INDEX, media_type="text/html")
 
 
 @app.get("/api/health")

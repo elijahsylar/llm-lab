@@ -58,6 +58,8 @@ Lite exports are tagged with a `lab` scope and hidden from `/api/models` unless 
 
 **Browser access from an HTTPS page.** A companion habit tracker served over HTTPS calls this backend on `localhost`. Chrome treats that as a public-to-private request and sends a Private Network Access preflight, which Starlette's CORS middleware rejects. A small middleware answers those preflights for allowed origins only. Extra origins come from `LLM_LAB_ALLOWED_ORIGINS`.
 
+**The lab's own page.** The backend serves `frontend/index.html` at `/`, so the page is opened as `http://localhost:8000/` and talks to the API same-origin. The `null` origin is not allowed by default, so opening `frontend/index.html` straight from disk (`file://`) no longer works: the browser blocks its API calls. To allow it again, add `null` to `LLM_LAB_ALLOWED_ORIGINS` (for example `LLM_LAB_ALLOWED_ORIGINS=null`). The risk is that `null` is not one page: every local HTML file and every sandboxed iframe on any website has the same origin, and all of them could then read from and post to the API.
+
 **Coach helpers** (`backend/coach.py`). Turn chat transcripts into `{"instruction", "output"}` training pairs (keeping structured ` ```entry ` blocks so a model learns to emit them) and build the coach system prompt for callers that send structured context.
 
 ## Running locally
@@ -72,13 +74,13 @@ python3 -m venv .venv
 CMAKE_ARGS="-DGGML_CUDA=on" pip install llama-cpp-python==0.3.23
 pip install -r requirements.txt
 cp .env.example .env          # optional settings; all have defaults
-./start.sh                    # backend on :8000, then opens frontend/index.html
+./start.sh                    # backend on :8000, then opens http://localhost:8000/
 ```
 
 - Put GGUF files in `models/` or `models/shared/` (or point `LLM_LAB_SHARED_MODELS_DIR` at an existing folder). Ollama models appear automatically if Ollama is running.
 - Fine-tuning datasets are JSONL files with `instruction` and `output` fields in `finetune/datasets/`.
 - GGUF export needs a llama.cpp checkout; set `LLAMA_CPP_DIR`.
-- Run the backend directly with `uvicorn backend.main:app --port 8000`. Do not use `--reload`: the job slot and the resident model live in process memory.
+- Run the backend directly with `uvicorn backend.main:app --host 127.0.0.1 --port 8000`, then open `http://localhost:8000/`. Do not use `--reload`: the job slot and the resident model live in process memory.
 
 ### Tests
 
@@ -86,11 +88,11 @@ cp .env.example .env          # optional settings; all have defaults
 python -m unittest discover -s tests -t . -v
 ```
 
-11 tests cover the registry scan (filename slugs, companion-file exclusion, lab scope and preset matching for lite exports, stable keys on collisions, path stripping) and the transcript-to-training-pair conversion. They need no GPU, models or Ollama.
+22 tests cover the registry scan (filename slugs, companion-file exclusion, lab scope and preset matching for lite exports, stable keys on collisions, path stripping), the transcript-to-training-pair conversion and the browser-origin rules (`null` and unlisted origins refused, listed origins allowed, the `null` opt-in, the page served at `/`, and one test recording the known limit that an unlisted origin can still fire the body-less stop routes). They need no GPU, models or Ollama; the origin tests need `fastapi` installed.
 
 ## Project status
 
-A personal tool, in regular use on one machine. It assumes a single local user and has no authentication; do not expose port 8000 beyond localhost.
+A personal tool, in regular use on one machine. It assumes a single local user and has no authentication: any program on the machine, and any page from an allowed origin, can load models and start or stop training jobs. The origin list only limits which pages can read responses or send JSON requests; any web page can still fire the body-less stop routes. `start.sh` binds the backend to loopback (`--host 127.0.0.1`); do not expose port 8000 beyond localhost.
 
 ## Project history
 
