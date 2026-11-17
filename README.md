@@ -92,6 +92,10 @@ python -m unittest discover -s tests -t . -v
 
 A personal tool, in regular use on one machine. It assumes a single local user and has no authentication; do not expose port 8000 beyond localhost.
 
+## Project history
+
+This public repository is a scrubbed snapshot of a private original, published in November 2026, which is why its commit history is short. Developed with Claude Code under a gated workflow of written plan, implementation, separate review and my sign-off.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
