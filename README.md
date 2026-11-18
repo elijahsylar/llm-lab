@@ -88,11 +88,11 @@ cp .env.example .env          # optional settings; all have defaults
 python -m unittest discover -s tests -t . -v
 ```
 
-22 tests cover the registry scan (filename slugs, companion-file exclusion, lab scope and preset matching for lite exports, stable keys on collisions, path stripping), the transcript-to-training-pair conversion and the browser-origin rules (`null` and unlisted origins refused, listed origins allowed, the `null` opt-in, the page served at `/`, and one test recording the known limit that an unlisted origin can still fire the body-less stop routes). They need no GPU, models or Ollama; the origin tests need `fastapi` installed.
+35 tests cover the registry scan (filename slugs, companion-file exclusion, lab scope and preset matching for lite exports, stable keys on collisions, path stripping), the transcript-to-training-pair conversion and the browser-origin rules (`null` and unlisted origins refused, listed origins allowed, the `null` opt-in, the page served at `/`) and the server-side refusal of state-changing requests from other origins (the handler does not run; same-origin, listed-origin and no-`Origin` requests still work; GET is unaffected). They need no GPU, models or Ollama; the origin tests need `fastapi` installed.
 
 ## Project status
 
-A personal tool, in regular use on one machine. It assumes a single local user and has no authentication: any program on the machine, and any page from an allowed origin, can load models and start or stop training jobs. The origin list only limits which pages can read responses or send JSON requests; any web page can still fire the body-less stop routes. `start.sh` binds the backend to loopback (`--host 127.0.0.1`); do not expose port 8000 beyond localhost.
+A personal tool, in regular use on one machine. It assumes a single local user and still has no authentication: any program on the machine can call the API, and so can a page from an allowed origin, to load models and start or stop training jobs. Pages on other sites cannot trigger state changes: the backend itself refuses (403) any POST, PUT, PATCH or DELETE whose `Origin` is neither on the allowed list nor the backend's own loopback address. Requests with no `Origin` header (curl, scripts, another app's server) are allowed, because browsers always send one on a cross-origin POST; if such a request still carries a `Sec-Fetch-Site` header other than `same-origin` or `none`, it is refused too. `start.sh` binds the backend to loopback (`--host 127.0.0.1`); do not expose port 8000 beyond localhost.
 
 ## Project history
 

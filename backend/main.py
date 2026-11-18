@@ -9,6 +9,7 @@ import sys
 import threading
 import time
 from typing import AsyncIterator
+from urllib.parse import urlsplit
 
 import httpx
 from fastapi import FastAPI, Request, Response
@@ -78,6 +79,42 @@ async def private_network_access(request: Request, call_next):
         if acrh:
             headers["Access-Control-Allow-Headers"] = acrh
         return Response(status_code=200, headers=headers)
+    return await call_next(request)
+
+
+# CORS only decides which pages may read a response; a "simple" request (for
+# example a POST with no body) is sent without a preflight and would still
+# run its handler. So state-changing requests are checked here, on the server.
+# A browser page cannot forge Origin, Host or Sec-Fetch-Site:
+#   - Origin present: it must be on ALLOWED_ORIGINS, or be this server's own
+#     origin (the page served at "/"), on whatever port it is reached. "Own"
+#     is trusted for loopback host names only, so a foreign name pointed at
+#     this machine (DNS rebinding) does not count.
+#   - Origin absent: allowed, because non-browser clients (curl, another
+#     app's server-side calls) send none and browsers always send it on a
+#     cross-origin POST. Sec-Fetch-Site is a second signal when present.
+SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
+LOOPBACK_HOSTS = ("localhost", "127.0.0.1", "::1")
+
+
+def _state_change_allowed(request: Request) -> bool:
+    origin = request.headers.get("origin")
+    if origin is None:
+        return request.headers.get("sec-fetch-site", "none") in ("same-origin", "none")
+    if origin in ALLOWED_ORIGINS:
+        return True
+    host = request.headers.get("host", "")
+    try:
+        hostname = urlsplit(f"//{host}").hostname
+    except ValueError:
+        return False
+    return hostname in LOOPBACK_HOSTS and origin == f"{request.url.scheme}://{host}"
+
+
+@app.middleware("http")
+async def refuse_cross_site_state_changes(request: Request, call_next):
+    if request.method not in SAFE_METHODS and not _state_change_allowed(request):
+        return JSONResponse({"error": "cross-origin request refused"}, status_code=403)
     return await call_next(request)
 
 DATASETS_DIR    = f"{LAB_ROOT}/finetune/datasets"
